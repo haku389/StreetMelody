@@ -37,8 +37,7 @@ struct SocialListView: View {
         .scrollIndicators(.hidden)
         .background(Color(hex: "F5F0FF").ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
-        .toolbarBackground(Color(hex: "F5F0FF"), for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .mlNavBarBackground()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
@@ -133,10 +132,7 @@ struct SocialListView: View {
     // MARK: セグメント
 
     private var segmented: some View {
-        Picker("", selection: $tab) {
-            ForEach(SocialTab.allCases, id: \.self) { t in Text(t.rawValue).tag(t) }
-        }
-        .pickerStyle(.segmented)
+        GlassSegment(items: SocialTab.allCases, selection: $tab) { $0.rawValue }
     }
 
     // MARK: リスト

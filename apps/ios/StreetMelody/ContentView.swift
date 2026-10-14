@@ -7,16 +7,23 @@ struct ContentView: View {
         ZStack(alignment: .bottom) {
             Color(hex: "F5F0FF").ignoresSafeArea()
 
-            NavigationStack(path: $vm.navigationStack) {
-                tabContent
-                    .navigationDestination(for: Screen.self) { screen in
-                        screenView(for: screen)
-                            .environmentObject(vm)
-                    }
-            }
-            .ignoresSafeArea()
+            // タブバー（StyleCare と同じ切り分け）
+            //  iOS 26 以降: OS 標準のタブバー。Liquid Glass は OS の実装なので、真似ずに標準を使う
+            //  それ未満   : 自作の浮いたバー（ぼかし素材）
+            if #available(iOS 26.0, *) {
+                nativeTabs
+            } else {
+                NavigationStack(path: $vm.navigationStack) {
+                    rootView(for: vm.activeTab)
+                        .toolbar(.hidden, for: .navigationBar)
+                        .navigationDestination(for: Screen.self) { screen in
+                            screenView(for: screen).environmentObject(vm)
+                        }
+                }
+                .ignoresSafeArea()
 
-            BottomNavBar().environmentObject(vm)
+                BottomNavBar().environmentObject(vm)
+            }
 
             if let trackId = vm.puzzleCompleteTrackId {
                 PuzzleCompleteOverlay(trackId: trackId)
@@ -58,23 +65,53 @@ struct ContentView: View {
                 .animation(.spring(), value: toast)
             }
         }
+        .sensoryFeedback(.selection, trigger: vm.activeTab)
         .sheet(isPresented: $vm.showProfileEdit) {
             ProfileEditView().environmentObject(vm)
         }
     }
 
-    @ViewBuilder
-    private var tabContent: some View {
-        Group {
-            switch vm.activeTab {
-            case .home:       HomeView()
-            case .melody:     MelodyView()
-            case .collection: CollectionView()
-            case .ranking:    RankingView()
-            case .mypage:     MyPageView()
+    // MARK: - 標準タブバー（iOS 26）
+
+    @available(iOS 26.0, *)
+    private var nativeTabs: some View {
+        TabView(selection: tabSelection) {
+            ForEach(Tab.allCases, id: \.self) { tab in
+                SwiftUI.Tab(tab.rawValue, systemImage: tab.icon, value: tab) {
+                    NavigationStack(path: path(for: tab)) {
+                        rootView(for: tab)
+                            .toolbar(.hidden, for: .navigationBar)
+                            .navigationDestination(for: Screen.self) { screen in
+                                screenView(for: screen).environmentObject(vm)
+                            }
+                    }
+                }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .tint(Color(hex: "7248E0"))
+    }
+
+    /// タブの選択。移ったら出会いの導線を片付ける（自作バーと同じ動き）
+    private var tabSelection: Binding<Tab> {
+        Binding(get: { vm.activeTab },
+                set: { vm.activeTab = $0; vm.clearCollectPrompts() })
+    }
+
+    /// 画面遷移の履歴は1本（vm.navigationStack）。いま選んでいるタブにだけ渡す
+    private func path(for tab: Tab) -> Binding<[Screen]> {
+        Binding(get: { vm.activeTab == tab ? vm.navigationStack : [] },
+                set: { if vm.activeTab == tab { vm.navigationStack = $0 } })
+    }
+
+    @ViewBuilder
+    private func rootView(for tab: Tab) -> some View {
+        switch tab {
+        case .home:       HomeView()
+        case .melody:     MelodyView()
+        case .collection: CollectionView()
+        case .ranking:    RankingView()
+        case .mypage:     MyPageView()
+        }
     }
 
     @ViewBuilder
@@ -98,7 +135,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Bottom Nav Bar
+// MARK: - Bottom Nav Bar（iOS 25 以下の自作バー）
 
 struct BottomNavBar: View {
     @EnvironmentObject var vm: AppViewModel
@@ -125,8 +162,8 @@ struct BottomNavBar: View {
             }
         }
         .padding(8)
-        .background(Color(hex: "FFFFFF").opacity(0.97), in: RoundedRectangle(cornerRadius: 24))
-        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color(hex: "E0D8F7")))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.6)))
         .shadow(color: Color(hex: "7248E0").opacity(0.10), radius: 16, y: 8)
         .padding(.horizontal, 14)
         .padding(.bottom, 4)

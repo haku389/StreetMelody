@@ -87,10 +87,9 @@ struct MyPageView: View {
                         .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
                 }
                 Spacer()
-                Button { vm.showProfileEdit = true } label: {
-                    Image(systemName: "square.and.pencil").font(.system(size: 16, weight: .bold)).foregroundStyle(Color(hex: "7248E0"))
+                GlassIconButton(systemName: "pencil", accessibilityLabel: "プロフィールを編集") {
+                    vm.showProfileEdit = true
                 }
-                .padding(.top, 2)
             }
 
             // フレンド / フォロー中 / フォロワー（タップで一覧） ＋ フレンド追加
@@ -101,6 +100,7 @@ struct MyPageView: View {
                 Button { vm.navigate(to: .socialList(.friends)) } label: {
                     HStack(spacing: 5) { Image(systemName: "person.badge.plus"); Text("フレンドを追加") }
                         .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                        .lineLimit(1).fixedSize()   // 狭い端末でも折り返さない（件数側が縮む）
                         .padding(.horizontal, 12).padding(.vertical, 12)
                         .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 12))
                 }

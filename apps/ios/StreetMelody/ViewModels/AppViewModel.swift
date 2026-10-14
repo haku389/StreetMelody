@@ -13,7 +13,7 @@ enum Tab: String, CaseIterable {
     var icon: String {
         switch self {
         case .home:       return "house.fill"
-        case .melody:     return "music.note.circle.fill"
+        case .melody:     return "music.note"
         case .collection: return "square.stack.3d.up.fill"
         case .ranking:    return "chart.bar.fill"
         case .mypage:     return "person.fill"
@@ -92,7 +92,9 @@ final class AppViewModel: ObservableObject {
 
     // MARK: Published - navigation
 
-    @Published var activeTab: Tab = .home
+    @Published var activeTab: Tab = .home {
+        didSet { if oldValue != activeTab { navigationStack = [] } }   // タブを移ったら詳細画面を閉じる
+    }
     @Published var navigationStack: [Screen] = []
 
     // MARK: Published - sub-tabs

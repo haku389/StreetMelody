@@ -1083,3 +1083,13 @@ SNS のフォロー型へ刷新。**相互フォロー＝フレンド**、フレ
 - 著作権方針で独自生成カードに置き換えていた曲アートを、**YouTube サムネイルに戻した**。表示の優先順は「本人のカスタム画像 ＞ サムネイル（`Track.thumbnailURL`＝同梱画像→API→ytimg）＞ 独自生成カード（サムネが無い曲のみ）」。
 - `MelodyCardArtwork` に `thumbnailURL` を追加。`ArtBlockView(track:)` はサムネ＋**未解放曲はモザイク**（ネタバレ防止、カスタム画像には掛けない）を復活。`PuzzlePiecesView`・`PieceSelectView` のピース切り出しもサムネに戻した。
 - 生成カード（`MelodyCardArtwork` の生成部分）は、サムネの無い架空曲のフォールバックとして残置。
+
+### Liquid Glass 対応（StyleCare の構成に合わせる・2026-10-15）
+
+StyleCare（`StyleCareNative/src/constants/flags.js`・`TabBar.js`・`GlassSegment.js`・`GlassIconButton.js`）と同じ切り分けにした。**iOS 26 以降は OS の Liquid Glass、それ未満はぼかし素材**。真似たガラスは溶け合いや泡の動きまで届かないので、本物が無い端末で無理に再現しない。対応OSは iOS 17 のまま。
+
+- **タブバー**：iOS 26 は OS 標準の `TabView`（`SwiftUI.Tab`。アプリ側の `enum Tab` と名前が重なるので完全修飾）。各タブが NavigationStack を持ち、画面履歴は `vm.navigationStack` 1本を「選んでいるタブにだけ」渡す。iOS 25 以下は従来の自作バーを `.regularMaterial` に。タブを移ったら `.sensoryFeedback(.selection)`。
+- **`activeTab` を変えたら履歴を根本へ**（VM の didSet）。標準タブバーでは前のタブの詳細画面が別タブに残るため。副次的に、パズル画面の「ピースを集める」が詳細画面を閉じずにタブだけ変えていた不具合も直った。
+- **共通部品 `Views/Components/Glass.swift`**：`mlGlass(in:)`（ガラス／ぼかし）、`GlassSegment`（ガラスの上を白いピルが滑る区分切替。コレクション・ランキング・つながりに適用）、`GlassIconButton`（iOS 26 だけ丸いガラスを敷く。マイページの編集ボタン）、`mlNavBarBackground()`（詳細画面のナビバー。iOS 26 は不透明に塗らず OS のガラスに任せる。14画面に適用）。
+- 既存の不具合修正：「メロディ」タブの記号 `music.note.circle.fill` は存在しない名前で何も出ていなかった → `music.note`。マイページ「フレンドを追加」が狭い端末で3行に折り返していた → 1行固定。
+- 確認：iOS 26.3（iPhone 17 Pro）で標準のガラスタブバー、iOS 18.4（iPhone 16 Pro Max）で自作バーに倒れることをシミュレーターで確認。iOS 26.3 シミュレーターだけカラー絵文字が「?」になる（フォントはあり、同じコードが 18.4・実機では出る）。シミュレーター側の表示不具合とみて未対応。

@@ -31,20 +31,7 @@ struct RankingView: View {
     // MARK: - Tab switcher
 
     private var tabSwitcher: some View {
-        HStack(spacing: 2) {
-            ForEach(RankingTab.allCases, id: \.self) { tab in
-                Button(tab.rawValue) { vm.rankingTab = tab }
-                    .font(.system(size: 12, weight: .black))
-                    .padding(.horizontal, 10).padding(.vertical, 8)
-                    .foregroundStyle(vm.rankingTab == tab ? Color(hex: "7248E0") : Color(hex: "B8ACD6"))
-                    .background(vm.rankingTab == tab ? Color(hex: "7248E0").opacity(0.12) : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 14))
-                    .frame(maxWidth: .infinity)
-            }
-        }
-        .padding(4)
-        .background(Color(hex: "FFFFFF"), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "E0D8F7")))
+        GlassSegment(items: RankingTab.allCases, selection: $vm.rankingTab) { $0.rawValue }
     }
 
     // MARK: - Ranking content

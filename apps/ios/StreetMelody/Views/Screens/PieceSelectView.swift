@@ -40,8 +40,7 @@ struct PieceSelectView: View {
         .scrollIndicators(.hidden)
         .background(Color(hex: "F5F0FF").ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
-        .toolbarBackground(Color(hex: "F5F0FF"), for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
+        .mlNavBarBackground()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
