@@ -66,6 +66,9 @@ struct ContentView: View {
             }
         }
         .sensoryFeedback(.selection, trigger: vm.activeTab)
+        .sheet(item: $vm.invitePerson) { person in
+            InvitePersonSheet(person: person).environmentObject(vm)
+        }
         .sheet(isPresented: $vm.showProfileEdit) {
             ProfileEditView().environmentObject(vm)
         }
@@ -123,14 +126,16 @@ struct ContentView: View {
         case .artistDetail(let id):       ArtistDetailView(artistId: id)
         case .friendDetail(let uid):      FriendDetailView(userId: uid)
         case .playlist:                   PlaylistView()
-        case .friends:                    FriendsView()
         case .premium:                    PremiumView()
         case .shop:                       ShopView()
         case .notifySettings:             NotifySettingsView()
         case .bgSettings:                 BgSettingsView()
         case .mission:                    MissionView()
         case .melodyMix:                  MelodyMixView()
-        case .socialList(let tab):        SocialListView(initialTab: tab)
+        case .friends(let tab):           FriendsView(initialTab: tab)
+        case .friendAdd:                  FriendAddView()
+        case .inviteCard:                 InviteCardView()
+        case .nearbyFriends:              NearbyFriendsView()
         }
     }
 }

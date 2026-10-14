@@ -27,16 +27,9 @@ struct HomeView: View {
     private var headerRow: some View {
         HStack(spacing: 12) {
             ZStack(alignment: .topTrailing) {
-                Group {
-                    // マイページで設定したアイコンがあればそれを出す
-                    if let img = vm.avatarUIImage() {
-                        Image(uiImage: img).resizable().scaledToFill()
-                    } else {
-                        Circle().fill(Color(hex: "EDE8FF")).overlay(Text("🎵").font(.title2))
-                    }
-                }
-                .frame(width: 50, height: 50).clipShape(Circle())
-                .shadow(color: Color(hex: "7248E0").opacity(0.15), radius: 8, y: 4)
+                // マイページで設定したアイコン（無ければ名前の頭文字）
+                UserAvatar(image: vm.avatarUIImage(), name: vm.profile.displayName ?? "", size: 50)
+                    .shadow(color: Color(hex: "7248E0").opacity(0.15), radius: 8, y: 4)
                 if let deco = vm.equippedDecoration,
                    let item = vm.shopItems.first(where: { $0.id == deco }) {
                     Text(item.icon).font(.system(size: 16)).offset(x: 6, y: -6)
@@ -65,7 +58,7 @@ struct HomeView: View {
 
     private var coinPill: some View {
         HStack(spacing: 6) {
-            Text("🪙")
+            CoinIcon(size: 18)
             Text("\(vm.coins)").font(.system(size: 12, weight: .black)).foregroundStyle(.primary)
         }
         .padding(.horizontal, 12).padding(.vertical, 8)

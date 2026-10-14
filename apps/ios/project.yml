@@ -20,6 +20,7 @@ targets:
       - path: StreetMelody
         excludes:
           - "Resources/Info.plist"
+          - "Resources/ServiceIcons/README.md"
     dependencies:
       - package: SpotifyiOS
         product: SpotifyiOS
@@ -39,6 +40,7 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         NSBluetoothAlwaysUsageDescription: "近くにいる人の推し曲を自動で受け取るために Bluetooth を使用します。"
         NSBluetoothPeripheralUsageDescription: "あなたの推し曲情報を近くにいる人に届けるために Bluetooth を使用します。"
+        NSCameraUsageDescription: "フレンドの QR コードを読み取るためにカメラを使用します。"
         NSAppleMusicUsageDescription: "今聴いている曲を取得して共有するために、Apple Music（メディアライブラリ）の再生情報を読み取ります。"
         # Spotify App Remote が Spotify アプリの存在確認・起動を行うために必要。
         LSApplicationQueriesSchemes:

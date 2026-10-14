@@ -30,21 +30,22 @@ enum Screen: Hashable {
     case artistDetail(artistId: String)
     case friendDetail(userId: String)
     case playlist
-    case friends
     case premium
     case shop
     case notifySettings
     case bgSettings
     case mission
     case melodyMix
-    case socialList(SocialTab)
+    case friends(FriendTab)   // フレンド一覧／届いた申請
+    case friendAdd            // フレンドを追加（招待・IDで申請・公開の設定）
+    case inviteCard           // 自分の QR 名刺（相手の QR を読むカメラもここ）
+    case nearbyFriends        // 近くの人（Bluetooth）
 }
 
-/// つながり一覧のタブ（フレンド＝相互フォロー / フォロー中 / フォロワー）。
-enum SocialTab: String, CaseIterable, Hashable {
-    case friends   = "フレンド"
-    case following = "フォロー中"
-    case followers = "フォロワー"
+/// フレンド画面の小タブ（StyleCare の「仲間／届いた申請」と同じ）
+enum FriendTab: String, CaseIterable, Hashable {
+    case list     = "フレンド"
+    case requests = "届いた申請"
 }
 
 // MARK: - Sub-tab enums
@@ -115,7 +116,9 @@ final class AppViewModel: ObservableObject {
     @Published var sharedFeed: [NowPlaying] = []          // フレンド/公開の今聴いてる曲
     @Published var nowPlayingShareMode: String = "off"    // 共有範囲: "off" | "bestfriends" | "friends" | "public"
     @Published var friendCode: String? = nil              // 自分のフレンドコード（user_id）
-    @Published var social: [SupabaseClient.SocialUser] = []  // フォロー関係（フレンド/ベスト判定込み）
+    @Published var friendList: [SupabaseClient.FriendUser] = []   // フレンド・届いた申請・送った申請
+    @Published var nearbyNames: [String: SupabaseClient.PublicProfile] = [:]  // 近くの人の表示名
+    @Published var invitePerson: SupabaseClient.PublicProfile? = nil  // 招待リンク・QR から開いた相手
     @Published var nearbyUsers: [NearbyUser] = []            // すれちがった実ユーザー（フォロー導線）
     @Published var nowPlayingBusy = false                 // 連携処理中のスピナー
     @Published var hintTickets: Int = 0
@@ -291,7 +294,7 @@ final class AppViewModel: ObservableObject {
         // 方式A: Supabase の自分の進行（所持ピース・解放）を seed/ローカルにマージ
         await mergeRemoteProgress()
         await refreshAccountState()
-        await loadSocialGraph()
+        await loadFriends()
         await loadProfile()
         startNearbyExchange()   // すれちがい開始
         if needsProfileSetup { showProfileEdit = true }   // オンボーディング
@@ -824,7 +827,7 @@ final class AppViewModel: ObservableObject {
     /// サインイン/連携の直後に呼ぶ。プロフィール未設定なら設定画面（オンボーディング）を出す。
     func presentOnboardingIfNeeded() async {
         await loadProfile()
-        await loadSocialGraph()
+        await loadFriends()
         if needsProfileSetup { showProfileEdit = true }
     }
 
@@ -859,11 +862,85 @@ final class AppViewModel: ObservableObject {
     }
     func stopMelody() { MelodyPlayer.shared.stop() }
 
-    // MARK: フォロー / フレンド / ベストフレンド
+    // MARK: フレンド（申請 → 相手が承認。StyleCare の仲間と同じ）
 
-    func loadSocialGraph() async { social = await SupabaseClient.shared.fetchSocialGraph() }
+    var friendsOnly: [SupabaseClient.FriendUser] { friendList.filter { $0.state == .friend } }
+    var incomingRequests: [SupabaseClient.FriendUser] { friendList.filter { $0.state == .incoming } }
+    var outgoingRequests: [SupabaseClient.FriendUser] { friendList.filter { $0.state == .outgoing } }
 
-    // MARK: すれちがい（BLE で実ユーザー交換 → フォロー導線）
+    /// 自分のユーザーID（「@」は付けない）
+    var myHandle: String? { profile.handle.flatMap { $0.isEmpty ? nil : $0 } }
+
+    /// 招待リンク。QR にもこれを入れる（アプリが入っていれば開く）
+    var myInviteURL: URL? { myHandle.flatMap { URL(string: "com.streetmelody.app://invite/\($0)") } }
+
+    func loadFriends() async { friendList = await SupabaseClient.shared.fetchFriends() }
+
+    /// 相手との関係（招待の札で押すものを変えるのに使う）
+    func relation(to userId: String) -> SupabaseClient.FriendUser.State? {
+        friendList.first { $0.userId.lowercased() == userId.lowercased() }?.state
+    }
+    func isMe(_ userId: String) -> Bool { userId.lowercased() == (friendCode ?? "").lowercased() }
+
+    /// ユーザーIDで探す（見つからなければ nil）
+    func findUser(handle: String) async -> SupabaseClient.PublicProfile? {
+        await SupabaseClient.shared.findUser(handle: handle)
+    }
+
+    /// 申請を送る。**申請だけで、相手が承認するまでフレンドにはならない。**
+    func sendFriendRequest(to userId: String) async {
+        do {
+            try await SupabaseClient.shared.sendFriendRequest(to: userId)
+            await loadFriends()
+            showToast(relation(to: userId) == .friend ? "フレンドになりました" : "申請を送りました")
+        } catch {
+            showToast((error as? SupabaseClient.OAuthError)?.errorDescription ?? "申請を送れませんでした")
+        }
+    }
+
+    func acceptFriend(_ userId: String) async {
+        do {
+            try await SupabaseClient.shared.acceptFriendRequest(from: userId)
+            await loadFriends(); await loadSharedFeed()
+            showToast("フレンドになりました")
+        } catch { showToast("承認できませんでした") }
+    }
+
+    /// 申請の取り消し・断る・フレンド解除
+    func removeFriendLink(_ userId: String, toast: String) async {
+        do {
+            try await SupabaseClient.shared.removeFriendLink(with: userId)
+            await loadFriends(); await loadSharedFeed()
+            showToast(toast)
+        } catch { showToast("できませんでした") }
+    }
+
+    /// ベストフレンド指定の切替（フレンドの相手だけ）
+    func toggleBestFriend(_ userId: String, isBest: Bool) async {
+        do {
+            try await SupabaseClient.shared.setBestFriend(userId, isBest: isBest)
+            await loadFriends()
+            showToast(isBest ? "ベストフレンドに指定しました" : "ベストフレンドから外しました")
+        } catch { showToast("変更できませんでした") }
+    }
+
+    /// 招待リンク（com.streetmelody.app://invite/<ユーザーID>）・QR から開く
+    func openInvite(url: URL) -> Bool {
+        guard url.host == "invite" else { return false }
+        let handle = url.lastPathComponent
+        guard !handle.isEmpty, handle != "/" else { return false }
+        Task {
+            if let p = await findUser(handle: handle) {
+                await loadFriends()
+                invitePerson = p
+            } else {
+                showToast("@\(handle) は見つかりませんでした")
+            }
+        }
+        return true
+    }
+
+    // MARK: すれちがい（BLE で実ユーザーを見つける → 申請の導線）
 
     private var nearbyStarted = false
     /// 自分の user_id を広告し、近距離の実ユーザーを検出する。
@@ -874,43 +951,19 @@ final class AppViewModel: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.nearbyUsers = self.bleManager.nearbyUsers
-                self.showToast("🤝 すれちがい！フォローできます")
+                await self.loadNearbyNames()
             }
         }
         nearbyUsers = bleManager.nearbyUsers
         bleManager.start(userId: uid)
     }
 
-    /// すれちがった相手をフォロー（相互フォローでフレンド成立）。
-    func followNearby(_ userId: String, nickname: String) async {
-        await followByCode(code: userId, nickname: nickname.isEmpty ? "すれちがい" : nickname)
-        nearbyUsers.removeAll { $0.userId == userId }
-    }
-
-    /// コードでフォロー（相互フォローでフレンド成立）。
-    func followByCode(code: String, nickname: String) async {
-        do {
-            try await SupabaseClient.shared.followUser(code: code, nickname: nickname)
-            showToast("フォローしました")
-            await loadSocialGraph()
-            await loadSharedFeed()
-        } catch {
-            let m = (error as? SupabaseClient.OAuthError)?.errorDescription ?? "フォローに失敗しました"
-            showToast(m)
-        }
-    }
-
-    func unfollow(_ userId: String) async {
-        await SupabaseClient.shared.unfollowUser(userId)
-        await loadSocialGraph()
-        await loadSharedFeed()
-    }
-
-    /// ベストフレンド指定の切替（フレンド＝相互フォローのみ対象を想定）。
-    func toggleBestFriend(_ userId: String, isBest: Bool) async {
-        await SupabaseClient.shared.setBestFriend(userId, isBest: isBest)
-        await loadSocialGraph()
-        showToast(isBest ? "ベストフレンドに追加" : "ベストフレンドから外しました")
+    /// 近くの人の表示名をまとめて引く
+    func loadNearbyNames() async {
+        let ids = nearbyUsers.map(\.userId).filter { nearbyNames[$0.lowercased()] == nil }
+        guard !ids.isEmpty else { return }
+        let found = await SupabaseClient.shared.displayNames(for: ids)
+        nearbyNames.merge(found) { _, new in new }
     }
 
     /// 手動で曲名を共有（YouTube Music 等・公式APIが無いサービス向け）。共有範囲は現在の設定（オフなら公開扱い）。

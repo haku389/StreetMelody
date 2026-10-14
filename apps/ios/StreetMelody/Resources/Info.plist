@@ -44,6 +44,8 @@
 	<string>近くにいる人の推し曲を自動で受け取るために Bluetooth を使用します。</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>あなたの推し曲情報を近くにいる人に届けるために Bluetooth を使用します。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>フレンドの QR コードを読み取るためにカメラを使用します。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

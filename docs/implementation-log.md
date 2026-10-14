@@ -1102,3 +1102,14 @@ StyleCare（`StyleCareNative/src/constants/flags.js`・`TabBar.js`・`GlassSegme
 - 各タブ：ホーム＝上段プロフィール行（マイページで設定したアイコンを表示）／pinned レベルバー（StyleCare の LevelBar と同じ役）。メロディ・マイページ＝上段見出し。コレクション＝上段 見出し＋検索／pinned 区分切替。ランキング＝上段 見出し／pinned 区分切替。
 - ついでに：コレクションの「完成済み」枠が空のとき幅が狭く中央寄せになっていたのを横幅いっぱいに。
 - 確認：iOS 26.3・iOS 18.4 のシミュレーターで、隠れる／残る／ぼかし／空白なしを確認。
+
+### フレンドを「申請 → 承認」へ・マイページを StyleCare の並びに（2026-10-15）
+
+**決定（はく）**：フレンドは StyleCare の仲間と同じ「申請して、相手が承認したら成立」に一本化。フォロー／フォロワーはやめる。推し曲は今の形（推し曲＝アプリ内の曲で相手に届く／好きな曲＝プロフィールで自由）を維持。音楽サービスの公式アイコンは はく が各社のブランド素材ページから用意する。
+
+- **サーバー**：`supabase/migrations/20261015120000_friend_requests.sql`（**未適用**。MelodyLien の Supabase が一時停止中のため）。`friend_links`（requester / addressee / status pending|accepted。`friendships` はすれ違いの交換履歴の名前で使用中なので別名）＋`friend_bests`。RLS：申請は自分から・待ちでしか入れられない／承認は受けた側だけ／取り消し・断る・解除はどちらからでも。2人が同時に申請し合ったら待たずに成立（StyleCare 20260916 と同じ）。承認時刻はサーバーで入れる。解除でベスト指定も消す。`find_user_by_handle`・`get_display_names`（返すのは表示名とIDだけ）。相互フォローだった人はフレンドとして引き継ぎ（follows は消さない）。
+- **アプリ**：`SupabaseClient` のフォロー API を申請・承認・解除・ベストに置き換え。VM は `friendList`（フレンド／届いた申請／送った申請）。
+- **画面（StyleCare と同じ作り）**：`FriendsView`（フレンド／届いた申請の小タブ、行は1枚ずつのカードにしない、「…」からベスト指定・解除）、`FriendAddView`（自分の情報と招待 → ユーザーIDで申請 → 公開の設定）、`InviteCardView`（QR 名刺。右上のカメラで相手の QR を読む＝VisionKit。自分たちの招待リンクしか受けない）、`NearbyFriendsView`（Bluetooth で近くの人を並べて申請）、`InvitePersonSheet`（招待リンク・QR から開いたとき。関係で押すものを変え、申請は自動で送らない）。招待リンクは既存の URL スキームを流用：`com.streetmelody.app://invite/<ユーザーID>`。カメラの許可（`NSCameraUsageDescription`）を追加。
+- **マイページ**：StyleCare の並び（プロフィールカード：写真・名前「変更」・@ID＋写す・フレンド数・QR → 小見出し＋1項目1枚のメニュー → 契約 → アカウント → アプリについて）。フレンドはメニューの1項目で、申請が届いていると数のバッジ。
+- **「?」の解消**：iOS 26.3 シミュレーターでカラー絵文字が「?」になっていた所（アイコン未設定の🎵・コインの🪙・音楽サービスの🎵）を記号に置き換え（`UserAvatar`・`CoinIcon`・`ServiceIcon`）。音楽サービスは `Resources/ServiceIcons/service_*.png` を置けば公式アイコンに差し替わる（README あり）。
+- 旧「すれ違った相手の交換履歴」画面（`FriendsView`）は前回のマイページ刷新で入口が無くなっていたので、新しいフレンド画面に置き換えた（旧版は git 履歴にある）。
