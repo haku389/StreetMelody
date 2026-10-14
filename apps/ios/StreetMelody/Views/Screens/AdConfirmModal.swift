@@ -7,9 +7,9 @@ struct AdConfirmModal: View {
 
     private var rewardLabel: String {
         switch kind {
-        case .hint1:  return "1つ目のヒントを見る"
-        case .hint2:  return "2つ目のヒントを見る"
-        case .answer: return "答えを見る"
+        case .hint1:  return "ジャンル・年代・雰囲気のヒント"
+        case .hint2:  return "曲名の文字を一部開く"
+        case .answer: return "ヒント"
         }
     }
 

@@ -1,5 +1,11 @@
 import SwiftUI
 
+// 未解放メロディ（曲名当て）。著作権方針に沿った段階ヒント：
+//  Lv0: アーティスト名表示 + 曲名?????? + 30秒試聴（広告なし）
+//  Lv1: ジャンル/年代/雰囲気ヒント（広告可）
+//  Lv2: 曲名の文字が数文字開く（広告可）
+//  Lv3: Apple Music / Spotify で確認 + 曲名入力 + あとで聴く（広告なし）
+// 広告・課金で答えを即解放する導線は廃止。
 struct MysteryView: View {
     let trackId: String
     @EnvironmentObject var vm: AppViewModel
@@ -15,11 +21,9 @@ struct MysteryView: View {
             VStack(spacing: 0) {
                 if let t = track {
                     mysteryHero(track: t)
+                    atmosphereCard(track: t)
                     actionBlock(track: t)
-                    if t.hintLevel >= 2, !t.choices.isEmpty {
-                        choiceGrid(choices: t.choices)
-                    }
-                    youtubePanel(track: t)
+                    externalConfirm(track: t)
                     PostCollectSection()
                 }
             }
@@ -57,7 +61,7 @@ struct MysteryView: View {
                 Task { await vm.applyHint(trackId: trackId, kind: pendingHint) }
             }
         }
-        .alert("曲名を当てる", isPresented: $showGuessAlert) {
+        .alert("曲名を入力する", isPresented: $showGuessAlert) {
             TextField("曲名を入力してください", text: $guessText)
             Button("確認") {
                 let _ = vm.guessTrack(trackId: trackId, answer: guessText)
@@ -69,15 +73,14 @@ struct MysteryView: View {
         }
     }
 
-    // MARK: - Mystery hero
+    // MARK: - Mystery hero（独自生成カード＋アーティスト名＋伏せ字曲名）
 
     private func mysteryHero(track: Track) -> some View {
         VStack(spacing: 10) {
             ZStack {
-                // 未解放はパズルサムネイルをモザイク（フル表示）で見せる
-                PuzzlePiecesView(thumbnailURL: track.thumbnailURL,
-                                 ownedPieces: track.ownedPieces,
+                PuzzlePiecesView(ownedPieces: track.ownedPieces,
                                  color: track.color,
+                                 seed: track.id,
                                  cornerRadius: 22,
                                  revealAll: true,
                                  blur: true)
@@ -87,16 +90,56 @@ struct MysteryView: View {
                     .frame(width: 62, height: 62)
                     .overlay(Text("🔒").font(.system(size: 28)))
             }
-            Text(maskedDisplay(track: track))
-                .font(.system(size: 14, weight: .black, design: .monospaced))
+            // アーティスト名は初期状態でも表示
+            Text(track.displayArtist)
+                .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+            // 曲名は伏せ字（Lv2で一部開く）
+            Text(track.maskedTitle(hintLevel: track.hintLevel))
+                .font(.system(size: 16, weight: .black, design: .monospaced))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
-            Text("未解放メロディ").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+            Text("曲名を当てて解放しよう").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
         }
         .padding(.bottom, 16)
     }
 
-    // MARK: - 少し聴く（30秒試聴）
+    // MARK: - Lv1：ジャンル/年代/雰囲気
+
+    private func atmosphereCard(track: Track) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("ヒント①  曲の雰囲気").font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                Spacer()
+                if track.hintLevel < 1 {
+                    Text("広告").font(.system(size: 9, weight: .black)).foregroundStyle(Color(hex: "7B6F8A"))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color(hex: "EDE8FF"), in: Capsule())
+                }
+            }
+            if track.hintLevel >= 1 {
+                HStack(spacing: 8) {
+                    chip("🎼 \(track.genreHint)")
+                    chip("📅 \(track.eraHint)")
+                    chip("✨ \(track.moodHint)")
+                }
+            } else {
+                Button { pendingHint = .hint1; showAdModal = true } label: {
+                    Text("雰囲気のヒントを見る").buttonLabel(.secondary)
+                }
+            }
+        }
+        .padding(16).mlCard()
+        .padding(.bottom, 14)
+    }
+
+    private func chip(_ s: String) -> some View {
+        Text(s).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "3D2F60"))
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - 試聴 + 当てる + Lv2文字開示
 
     @ViewBuilder
     private func previewButton(track: Track) -> some View {
@@ -121,22 +164,18 @@ struct MysteryView: View {
         .disabled(!enabled)
     }
 
-    // MARK: - Action block
-
     private func actionBlock(track: Track) -> some View {
         VStack(spacing: 10) {
             previewButton(track: track)
+            Text("30秒試聴は iTunes の公式プレビュー音源です（1曲1日3回まで）")
+                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
             Button { showGuessAlert = true } label: {
                 Text("曲名を当てる").buttonLabel(.pink)
             }
-            Button { pendingHint = .hint1; showAdModal = true } label: {
-                Text("1つ目のヒントを見る  🎫×1").buttonLabel(.secondary)
-            }
-            Button { pendingHint = .hint2; showAdModal = true } label: {
-                Text("2つ目のヒントを見る  🎫×1").buttonLabel(.secondary)
-            }
-            Button { pendingHint = .answer; showAdModal = true } label: {
-                Text("答えを見る  CM×1").buttonLabel(.coin)
+            if track.hintLevel < 2 {
+                Button { pendingHint = .hint2; showAdModal = true } label: {
+                    Text("ヒント②  曲名の文字を開く（広告）").buttonLabel(.secondary)
+                }
             }
             if vm.hintTickets > 0 {
                 Text("🎟️ ヒントチケット \(vm.hintTickets)枚所持 — 広告なしで解放されます")
@@ -149,80 +188,38 @@ struct MysteryView: View {
         .padding(.bottom, 14)
     }
 
-    // MARK: - 4択
+    // MARK: - Lv3：Apple Music / Spotify で確認（広告なし）
 
-    private func choiceGrid(choices: [String]) -> some View {
-        LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 10) {
-            ForEach(choices, id: \.self) { choice in
-                Button(choice) {}
-                    .font(.system(size: 13, weight: .heavy)).foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, minHeight: 42)
-                    .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 15))
-                    .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(hex: "E0D8F7")))
+    private func externalConfirm(track: Track) -> some View {
+        let title = track.title ?? ""
+        let artist = track.artistName ?? ""
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("ヒント③  外部で確認する").font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+            Text("Apple Music / Spotify で聴いて曲名を確かめ、上の「曲名を当てる」で入力しよう")
+                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+            HStack(spacing: 10) {
+                extBtn("Apple Music", icon: "music.note", bg: Color(hex: "FA2D48")) {
+                    ExternalMusic.openAppleMusic(title: title, artist: artist)
+                }
+                extBtn("Spotify", icon: "music.note", bg: Color(hex: "1DB954")) {
+                    ExternalMusic.openSpotify(title: title, artist: artist)
+                }
+            }
+            Button { Task { await vm.addListenLater(trackId: trackId) } } label: {
+                Text("あとで聴くに追加").buttonLabel(.secondary)
             }
         }
         .padding(16).mlCard()
         .padding(.bottom, 14)
     }
 
-    // MARK: - YouTube panel
-
-    private func youtubePanel(track: Track) -> some View {
-        let hasVideo = track.hasYouTubeVideo
-        let isLocked = !track.answerReady
-
-        return VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                if let thumbURL = track.thumbnailURL, !isLocked {
-                    CachedThumbnail(url: thumbURL)
-                        .background(Color(hex: "EDE8FF"))
-                        .frame(width: 72, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(hasVideo ? Color.red.opacity(0.8) : Color(hex: "EDE8FF"))
-                        .frame(width: 48, height: 48)
-                        .overlay(
-                            Image(systemName: hasVideo ? "play.fill" : "lock.fill")
-                                .foregroundStyle(hasVideo ? .white : Color(hex: "B8ACD6"))
-                        )
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("YouTubeで見て確認")
-                        .font(.system(size: 13, weight: .black)).foregroundStyle(.primary).lineLimit(1)
-                    Text(
-                        isLocked ? "広告視聴後に確認できます" :
-                        !hasVideo ? "この曲のYouTube動画はありません" :
-                        "確認すると曲名とアーティスト名を解放します"
-                    )
-                    .font(.system(size: 10, weight: .heavy))
-                    .foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
-                }
-                Spacer()
-                if isLocked {
-                    Button { pendingHint = .answer; showAdModal = true } label: {
-                        Text("CM").buttonLabel(.coin, small: true)
-                    }
-                } else {
-                    Button {
-                        Task { await vm.unlockTrack(trackId: trackId) }
-                    } label: {
-                        Text("確認して解放").buttonLabel(.primary, small: true)
-                    }
-                }
-            }
+    private func extBtn(_ label: String, icon: String, bg: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) { Image(systemName: icon); Text(label) }
+                .font(.system(size: 12, weight: .black)).foregroundStyle(.white)
+                .frame(maxWidth: .infinity).padding(.vertical, 11)
+                .background(bg, in: RoundedRectangle(cornerRadius: 12))
         }
-        .padding(14).mlCard()
-        .opacity(isLocked ? 0.55 : 1)
-    }
-
-    // MARK: - Helpers
-
-    private func maskedDisplay(track: Track) -> String {
-        if track.isUnlocked { return "\(track.artistName ?? "") / \(track.title ?? "")" }
-        guard let masked = track.maskedLabel else { return "★★★★★★★★" }
-        return masked
     }
 }
 

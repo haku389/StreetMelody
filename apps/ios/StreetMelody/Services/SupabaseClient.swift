@@ -403,6 +403,218 @@ actor SupabaseClient {
                             body: body, prefer: "resolution=merge-duplicates,return=minimal")
     }
 
+    // MARK: Now Playing（今聴いている曲・共有）
+
+    private struct NowPlayingRow: Decodable {
+        let user_id: String
+        let display_name: String?
+        let service: String
+        let track_title: String
+        let artist: String?
+        let artwork_url: String?
+        let started_at: String?
+        let updated_at: String?
+        let visibility: String
+    }
+
+    /// PostgREST の timestamptz 文字列を Date へ（小数秒あり/なしの両方を許容）。
+    private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f
+    }()
+    private static let isoPlain = ISO8601DateFormatter()
+    private static func parseDate(_ s: String?) -> Date? {
+        guard let s else { return nil }
+        return isoFractional.date(from: s) ?? isoPlain.date(from: s)
+    }
+    private func map(_ r: NowPlayingRow) -> NowPlaying {
+        NowPlaying(userId: r.user_id, displayName: r.display_name, service: r.service,
+                   trackTitle: r.track_title, artist: r.artist, artworkUrl: r.artwork_url,
+                   startedAt: Self.parseDate(r.started_at),
+                   updatedAt: Self.parseDate(r.updated_at) ?? Date(),
+                   visibility: r.visibility)
+    }
+
+    /// 自分の「今聴いている曲」を upsert（行は user_id 主キーで最新1件）。
+    func upsertNowPlaying(service: String, title: String, artist: String?, artworkUrl: String?,
+                          startedAt: Date?, visibility: String, displayName: String?) async {
+        guard let uid = userId else { return }
+        var row: [String: Any] = [
+            "user_id": uid, "service": service, "track_title": title,
+            "visibility": visibility, "updated_at": Self.isoFractional.string(from: Date()),
+        ]
+        if let artist { row["artist"] = artist }
+        if let artworkUrl { row["artwork_url"] = artworkUrl }
+        if let displayName { row["display_name"] = displayName }
+        if let startedAt { row["started_at"] = Self.isoFractional.string(from: startedAt) }
+        let body = try? JSONSerialization.data(withJSONObject: [row])
+        _ = try? await rest(method: "POST", query: "now_playing?on_conflict=user_id",
+                            body: body, prefer: "resolution=merge-duplicates,return=minimal")
+    }
+
+    /// 自分の now-playing 行を削除（再生停止・共有OFFで消したいとき）。
+    func clearNowPlaying() async {
+        guard let uid = userId else { return }
+        _ = try? await rest(method: "DELETE", query: "now_playing?user_id=eq.\(uid)", prefer: "return=minimal")
+    }
+
+    /// 自分が閲覧できる他ユーザーの now-playing を新着順で取得。
+    /// RLS により public 行＋自分がフレンド登録した相手の friends 行が返る（自分は除外）。
+    func fetchSharedNowPlaying(limit: Int = 50) async -> [NowPlaying] {
+        let cols = "user_id,display_name,service,track_title,artist,artwork_url,started_at,updated_at,visibility"
+        var q = "now_playing?select=\(cols)&order=updated_at.desc&limit=\(limit)"
+        if let uid = userId { q += "&user_id=neq.\(uid)" }
+        guard let d = (try? await rest(method: "GET", query: q)) ?? nil,
+              let rows = try? JSONDecoder().decode([NowPlayingRow].self, from: d) else { return [] }
+        return rows.map(map)
+    }
+
+    /// フレンドコード（相手の user_id）でフレンド追加。以後その相手の friends 共有を閲覧できる。
+    func addFriendByCode(friendUserId: String, nickname: String) async throws {
+        guard let uid = userId else { throw AuthError.notSignedIn }
+        let code = friendUserId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard code.count == 36, code != uid.lowercased() else {
+            throw OAuthError.message(code == uid.lowercased() ? "自分のコードは追加できません" : "コードの形式が正しくありません")
+        }
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        let row: [String: Any] = [
+            "user_id": uid, "friend_user_id": code, "exchange_count": 1,
+            "friend_name": name.isEmpty ? "フレンド(\(code.suffix(4)))" : name,
+        ]
+        let body = try JSONSerialization.data(withJSONObject: [row])
+        _ = try await rest(method: "POST", query: "friendships?on_conflict=user_id,friend_name",
+                           body: body, prefer: "resolution=merge-duplicates,return=minimal")
+    }
+
+    /// フレンドコード（自分の user_id）。相手に渡してフォローしてもらう。
+    func myFriendCode() -> String? { userId }
+
+    // MARK: プロフィール
+
+    struct UserProfile: Codable, Sendable, Equatable {
+        var handle: String?
+        var displayName: String?
+        var bio: String?
+        var favoriteArtistIds: [String] = []
+        var favoriteTrackIds: [String] = []
+        var birthday: String?      // "yyyy-MM-dd"
+        var gender: String?        // "male"|"female"|"other"|"na"
+        var visibility: [String: String] = [:]   // 項目→スコープ
+    }
+    private struct ProfileRow: Decodable {
+        let handle: String?; let display_name: String?; let bio: String?
+        let favorite_artist_ids: [String]?; let favorite_track_ids: [String]?
+        let birthday: String?; let gender: String?; let profile_visibility: [String: String]?
+    }
+
+    /// 自分のプロフィールを取得。
+    func fetchMyProfile() async -> UserProfile? {
+        guard let uid = userId else { return nil }
+        let cols = "handle,display_name,bio,favorite_artist_ids,favorite_track_ids,birthday,gender,profile_visibility"
+        guard let d = (try? await rest(method: "GET", query: "profiles?user_id=eq.\(uid)&select=\(cols)")) ?? nil,
+              let rows = try? JSONDecoder().decode([ProfileRow].self, from: d), let r = rows.first else { return nil }
+        return UserProfile(handle: r.handle, displayName: r.display_name, bio: r.bio,
+                           favoriteArtistIds: r.favorite_artist_ids ?? [], favoriteTrackIds: r.favorite_track_ids ?? [],
+                           birthday: r.birthday, gender: r.gender, visibility: r.profile_visibility ?? [:])
+    }
+
+    /// 自分のプロフィールを更新。handle 重複は 409 → わかりやすいメッセージに。
+    func updateMyProfile(_ p: UserProfile) async throws {
+        guard let uid = userId else { throw AuthError.notSignedIn }
+        var obj: [String: Any] = [
+            "favorite_artist_ids": p.favoriteArtistIds,
+            "favorite_track_ids": p.favoriteTrackIds,
+            "profile_visibility": p.visibility,
+            "handle": p.handle ?? NSNull(),
+            "display_name": p.displayName ?? NSNull(),
+            "bio": p.bio ?? NSNull(),
+            "birthday": p.birthday ?? NSNull(),
+            "gender": p.gender ?? NSNull(),
+        ]
+        obj["updated_at"] = Self.isoFractional.string(from: Date())
+        let body = try JSONSerialization.data(withJSONObject: obj)
+        do {
+            _ = try await rest(method: "PATCH", query: "profiles?user_id=eq.\(uid)", body: body, prefer: "return=minimal")
+        } catch APIError.httpError(let code) where code == 409 {
+            throw OAuthError.message("そのユーザーIDは既に使われています")
+        }
+    }
+
+    /// handle の空き確認（RPC）。
+    func checkHandleAvailable(_ handle: String) async -> Bool {
+        let body = try? JSONSerialization.data(withJSONObject: ["p_handle": handle])
+        guard let d = (try? await rest(method: "POST", query: "rpc/check_handle_available", body: body)) ?? nil,
+              let ok = try? JSONDecoder().decode(Bool.self, from: d) else { return false }
+        return ok
+    }
+
+    // MARK: フォロー / フレンド / ベストフレンド（follows）
+
+    struct SocialUser: Sendable, Identifiable {
+        let userId: String
+        var nickname: String?
+        var following: Bool     // 自分が相手をフォロー
+        var followedBy: Bool    // 相手が自分をフォロー
+        var isBest: Bool        // 自分が相手をベスト指定
+        var id: String { userId }
+        var isFriend: Bool { following && followedBy }     // 相互フォロー＝フレンド
+    }
+    private struct FollowRow: Decodable {
+        let follower_id: String; let followee_id: String; let nickname: String?; let is_best: Bool
+    }
+
+    /// 自分が関与するフォロー関係を取得して、相手ごとに集約する。
+    func fetchSocialGraph() async -> [SocialUser] {
+        guard let uid = userId else { return [] }
+        let q = "follows?select=follower_id,followee_id,nickname,is_best&or=(follower_id.eq.\(uid),followee_id.eq.\(uid))"
+        guard let d = (try? await rest(method: "GET", query: q)) ?? nil,
+              let rows = try? JSONDecoder().decode([FollowRow].self, from: d) else { return [] }
+        var map: [String: SocialUser] = [:]
+        for r in rows {
+            if r.follower_id == uid {            // 自分→相手（フォロー中）
+                var u = map[r.followee_id] ?? SocialUser(userId: r.followee_id, nickname: nil, following: false, followedBy: false, isBest: false)
+                u.following = true; u.isBest = r.is_best; u.nickname = r.nickname
+                map[r.followee_id] = u
+            } else if r.followee_id == uid {     // 相手→自分（フォロワー）
+                var u = map[r.follower_id] ?? SocialUser(userId: r.follower_id, nickname: nil, following: false, followedBy: false, isBest: false)
+                u.followedBy = true
+                map[r.follower_id] = u
+            }
+        }
+        return Array(map.values).sorted { ($0.nickname ?? $0.userId) < ($1.nickname ?? $1.userId) }
+    }
+
+    /// コード（相手の user_id）でフォローする。
+    func followUser(code: String, nickname: String) async throws {
+        guard let uid = userId else { throw AuthError.notSignedIn }
+        let c = code.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard c.count == 36, c != uid.lowercased() else {
+            throw OAuthError.message(c == uid.lowercased() ? "自分はフォローできません" : "コードの形式が正しくありません")
+        }
+        let name = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        var row: [String: Any] = ["follower_id": uid, "followee_id": c]
+        if !name.isEmpty { row["nickname"] = name }
+        let body = try JSONSerialization.data(withJSONObject: [row])
+        _ = try await rest(method: "POST", query: "follows?on_conflict=follower_id,followee_id",
+                           body: body, prefer: "resolution=merge-duplicates,return=minimal")
+    }
+
+    /// フォロー解除。
+    func unfollowUser(_ followeeId: String) async {
+        guard let uid = userId else { return }
+        _ = try? await rest(method: "DELETE",
+                            query: "follows?follower_id=eq.\(uid)&followee_id=eq.\(followeeId)",
+                            prefer: "return=minimal")
+    }
+
+    /// ベストフレンド指定の ON/OFF（自分→相手のフォロー行を更新）。
+    func setBestFriend(_ followeeId: String, isBest: Bool) async {
+        guard let uid = userId else { return }
+        let body = try? JSONSerialization.data(withJSONObject: ["is_best": isBest])
+        _ = try? await rest(method: "PATCH",
+                            query: "follows?follower_id=eq.\(uid)&followee_id=eq.\(followeeId)",
+                            body: body, prefer: "return=minimal")
+    }
+
     // MARK: Persistence
 
     private func save(_ s: SavedSession) {

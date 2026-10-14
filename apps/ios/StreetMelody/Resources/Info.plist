@@ -29,11 +29,17 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>今聴いている曲を取得して共有するために、Apple Music（メディアライブラリ）の再生情報を読み取ります。</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>近くにいる人の推し曲を自動で受け取るために Bluetooth を使用します。</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

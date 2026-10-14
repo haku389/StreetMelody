@@ -1,55 +1,74 @@
 import SwiftUI
 import WebKit
+import AVFoundation
 
-// MARK: - YouTube 音声プレイヤー（隠し WKWebView）
+// 30秒試聴は iTunes Search の previewUrl を AVPlayer で再生する（下の PreviewPlayerView）。
+// 旧 YouTube 音声のみ再生（YouTubeAudioPlayer）は著作権方針により撤去。
+// 完成パズルの MV（映像つき）は YouTube 公式埋め込みを使用（YouTubeVideoPlayer）。
 
-/// YouTube IFrame Player API を WKWebView に載せ、サビ位置から自動再生する。
-/// 映像は上の不透明レイヤーで隠し「音声だけ」の体験にする（設計書 §5.2/5.3）。
-struct YouTubeAudioPlayer: UIViewRepresentable {
+// MARK: - YouTube MV（映像つきフルプレイヤー：完成パズル用）
+
+struct YouTubeVideoPlayer: UIViewRepresentable {
     let videoId: String
-    let startSeconds: Int
-    @Binding var stopSignal: Bool
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
-        config.mediaTypesRequiringUserActionForPlayback = []   // 自動再生（音あり）を許可
+        config.mediaTypesRequiringUserActionForPlayback = []
         let wv = WKWebView(frame: .zero, configuration: config)
-        wv.isUserInteractionEnabled = false
         wv.scrollView.isScrollEnabled = false
         wv.backgroundColor = .black
         wv.isOpaque = true
-        wv.loadHTMLString(Self.html(videoId: videoId, start: startSeconds),
-                          baseURL: URL(string: "https://www.youtube.com"))
-        return wv
-    }
-
-    func updateUIView(_ wv: WKWebView, context: Context) {
-        if stopSignal {
-            wv.evaluateJavaScript("window.stopPreview && window.stopPreview();", completionHandler: nil)
-        }
-    }
-
-    private static func html(videoId: String, start: Int) -> String {
-        """
+        let html = """
         <!DOCTYPE html><html><head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-        <style>html,body{margin:0;padding:0;background:#000;overflow:hidden;}#player{width:100%;height:100%;}</style>
+        <style>html,body{margin:0;padding:0;background:#000;}iframe{width:100%;height:100%;border:0;}</style>
         </head><body>
-        <div id="player"></div>
-        <script src="https://www.youtube.com/iframe_api"></script>
-        <script>
-        var player;
-        function onYouTubeIframeAPIReady(){
-          player = new YT.Player('player', {
-            videoId: '\(videoId)',
-            playerVars: {autoplay:1, controls:0, rel:0, modestbranding:1, playsinline:1, fs:0, disablekb:1, start:\(start)},
-            events: { 'onReady': function(e){ e.target.setVolume(100); e.target.playVideo(); } }
-          });
-        }
-        window.stopPreview = function(){ if(player && player.pauseVideo){ player.pauseVideo(); } };
-        </script></body></html>
+        <iframe src="https://www.youtube.com/embed/\(videoId)?playsinline=1&rel=0&modestbranding=1&autoplay=1"
+          allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </body></html>
         """
+        wv.loadHTMLString(html, baseURL: URL(string: "https://www.youtube.com"))
+        return wv
+    }
+    func updateUIView(_ wv: WKWebView, context: Context) {}
+}
+
+struct YouTubeMVView: View {
+    @EnvironmentObject var vm: AppViewModel
+    let trackId: String
+    private var track: Track? { vm.track(for: trackId) }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.96).ignoresSafeArea()
+            VStack(spacing: 16) {
+                HStack {
+                    Spacer()
+                    Button { vm.endMV() } label: {
+                        Image(systemName: "xmark").font(.system(size: 16, weight: .heavy)).foregroundStyle(.white.opacity(0.8))
+                            .frame(width: 36, height: 36).background(.white.opacity(0.12), in: Circle())
+                    }
+                }
+                .padding(.horizontal, 20).padding(.top, 16)
+                Spacer()
+                if let t = track, let vid = t.youtubeVideoId {
+                    YouTubeVideoPlayer(videoId: vid)
+                        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal, 12)
+                }
+                VStack(spacing: 4) {
+                    Text(track?.title ?? "—").font(.system(size: 16, weight: .black)).foregroundStyle(.white)
+                    Text(track?.displayArtist ?? "—").font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "a78bf8"))
+                }
+                Spacer()
+            }
+        }
+        .onAppear {
+            let s = AVAudioSession.sharedInstance()
+            try? s.setCategory(.playback, mode: .moviePlayback); try? s.setActive(true)
+        }
     }
 }
 
@@ -60,9 +79,10 @@ struct PreviewPlayerView: View {
     let trackId: String
 
     @State private var secondsLeft = 30
-    @State private var stopSignal = false
     @State private var finished = false
     @State private var waveAnimate = false
+    @State private var player: AVPlayer? = nil
+    @State private var loadFailed = false
 
     private let total = 30
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -71,20 +91,33 @@ struct PreviewPlayerView: View {
 
     var body: some View {
         ZStack {
-            // 非表示の音声プレイヤー（不透明な背景レイヤーで隠す＝音声のみ）
-            if let t = track, let vid = t.youtubeVideoId {
-                YouTubeAudioPlayer(videoId: vid, startSeconds: t.chorusStart ?? 0, stopSignal: $stopSignal)
-                    .frame(width: 240, height: 135)
-                    .allowsHitTesting(false)
-            }
             LinearGradient(colors: [Color(hex: "1a1030"), Color(hex: "0f0a20")],
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
-
             content
         }
         .onReceive(timer) { _ in tick() }
-        .onAppear { waveAnimate = true }
+        .onAppear { waveAnimate = true; Task { await startPlayback() } }
+        .onDisappear { player?.pause(); player = nil }
+    }
+
+    /// iTunes の30秒プレビュー音源を AVPlayer で再生（YouTube埋め込みより確実に鳴る）。
+    private func startPlayback() async {
+        let s = AVAudioSession.sharedInstance()
+        try? s.setCategory(.playback, mode: .default)
+        try? s.setActive(true)
+        guard let t = track else { loadFailed = true; return }
+        // マスク対象でも検索には実データ（title/artistName）を使う
+        let title = t.title ?? t.maskedLabel ?? ""
+        let artist = t.artistName ?? ""
+        guard !title.isEmpty, let url = await ITunesSearch.previewURL(title: title, artist: artist) else {
+            loadFailed = true
+            return
+        }
+        let p = AVPlayer(url: url)
+        p.volume = 1.0
+        player = p
+        p.play()
     }
 
     private var content: some View {
@@ -118,7 +151,7 @@ struct PreviewPlayerView: View {
             .opacity(finished ? 0.3 : 1)
             .padding(.bottom, 28)
 
-            Text(track?.isUnlocked == true ? (track?.title ?? "—") : (track?.maskedLabel ?? "未解放メロディ"))
+            Text(track.map { $0.isUnlocked ? ($0.title ?? "—") : $0.maskedTitle(hintLevel: $0.hintLevel) } ?? "未解放メロディ")
                 .font(.system(size: 18, weight: .black)).foregroundStyle(.white)
                 .multilineTextAlignment(.center)
             Text(track?.displayArtist ?? "—")
@@ -145,14 +178,32 @@ struct PreviewPlayerView: View {
             .frame(height: 6)
             .padding(.horizontal, 40).padding(.top, 18)
 
-            Text("本日あと \(vm.previewPlaysLeft(trackId: trackId)) 回試聴できます")
+            Text(track?.isUnlocked == true ? "解放済み（無制限で試聴できます）"
+                                            : "本日あと \(vm.previewPlaysLeft(trackId: trackId)) 回試聴できます")
                 .font(.system(size: 11, weight: .heavy)).foregroundStyle(.white.opacity(0.5))
                 .padding(.top, 14)
 
-            if finished {
+            if loadFailed {
+                Text("この曲の試聴音源が見つかりませんでした")
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(.white.opacity(0.55))
+                    .padding(.top, 14)
+            } else if finished {
                 Text("試聴おわり。ヒントや確認で曲名を当てよう")
                     .font(.system(size: 11, weight: .heavy)).foregroundStyle(.white.opacity(0.55))
                     .padding(.top, 14)
+            }
+
+            // 外部音楽サービスで開く（試聴の近くに配置）
+            if let t = track {
+                HStack(spacing: 10) {
+                    extLink("Apple Music", icon: "music.note") {
+                        ExternalMusic.openAppleMusic(title: t.title ?? "", artist: t.artistName ?? "")
+                    }
+                    extLink("Spotify", icon: "music.note") {
+                        ExternalMusic.openSpotify(title: t.title ?? "", artist: t.artistName ?? "")
+                    }
+                }
+                .padding(.horizontal, 36).padding(.top, 16)
             }
 
             Spacer()
@@ -169,6 +220,17 @@ struct PreviewPlayerView: View {
         }
     }
 
+    private func extLink(_ label: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) { Image(systemName: icon); Text(label) }
+                .font(.system(size: 12, weight: .black)).foregroundStyle(.white)
+                .frame(maxWidth: .infinity).padding(.vertical, 11)
+                .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.18)))
+        }
+        .buttonStyle(.plain)
+    }
+
     private func barHeight(_ i: Int) -> CGFloat {
         if finished { return 10 }
         let base: [CGFloat] = [22, 44, 30, 60, 38, 70, 50, 70, 38, 60, 30, 44, 22]
@@ -177,15 +239,16 @@ struct PreviewPlayerView: View {
 
     private func tick() {
         guard !finished else { return }
+        if loadFailed { finished = true; return }
         if secondsLeft > 0 { secondsLeft -= 1 }
         if secondsLeft <= 0 {
             finished = true
-            stopSignal = true
+            player?.pause()
         }
     }
 
     private func end() {
-        stopSignal = true
+        player?.pause()
         vm.endPreview()
     }
 }

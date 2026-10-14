@@ -1,8 +1,10 @@
 import SwiftUI
+import PhotosUI
 
 struct PuzzleView: View {
     let trackId: String
     @EnvironmentObject var vm: AppViewModel
+    @State private var photoItem: PhotosPickerItem?
 
     private var track: Track? { vm.track(for: trackId) }
 
@@ -54,9 +56,10 @@ struct PuzzleView: View {
         return VStack(spacing: 14) {
             // 6×4 パズル本体：所持ピースだけサムネイルが見える（設計書準拠）
             VStack(spacing: 14) {
-                PuzzlePiecesView(thumbnailURL: track.thumbnailURL,
-                                 ownedPieces: track.ownedPieces,
+                PuzzlePiecesView(ownedPieces: track.ownedPieces,
                                  color: track.color,
+                                 seed: track.id,
+                                 customImage: vm.customUIImage(for: track.id),
                                  cornerRadius: 18)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -72,6 +75,10 @@ struct PuzzleView: View {
                 }
             }
             .padding(16).mlCard()
+
+            musicActions(track: track)
+
+            customImageSection(track: track)
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("完成で手に入る報酬").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
@@ -89,6 +96,42 @@ struct PuzzleView: View {
         }
     }
 
+    private func musicActions(track: Track) -> some View {
+        let title = track.title ?? track.displayTitle
+        let artist = track.artistName ?? track.displayArtist
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("この曲を聴く・観る").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+            Text("Apple Music / Spotify アプリで開いて再生できます（バックグラウンド継続）")
+                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+            HStack(spacing: 10) {
+                actionButton("Apple Music", icon: "music.note", bg: Color(hex: "FA2D48")) {
+                    ExternalMusic.openAppleMusic(title: title, artist: artist)
+                }
+                actionButton("Spotify", icon: "music.note", bg: Color(hex: "1DB954")) {
+                    ExternalMusic.openSpotify(title: title, artist: artist)
+                }
+            }
+            HStack(spacing: 10) {
+                if track.hasYouTubeVideo {
+                    actionButton("30秒試聴", icon: "play.fill", bg: Color(hex: "5BA8F5")) { vm.startPreview(trackId: trackId) }
+                }
+                if track.isComplete && track.hasYouTubeVideo {
+                    actionButton("MVを見る（YouTube）", icon: "play.rectangle.fill", bg: Color(hex: "3D2F60")) { vm.playMV(trackId: trackId) }
+                }
+            }
+        }
+        .padding(16).mlCard()
+    }
+
+    private func actionButton(_ label: String, icon: String, bg: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) { Image(systemName: icon); Text(label) }
+                .font(.system(size: 12, weight: .black)).foregroundStyle(.white)
+                .frame(maxWidth: .infinity).padding(.vertical, 11)
+                .background(bg, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
     private func rewardTile(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label).font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
@@ -98,5 +141,46 @@ struct PuzzleView: View {
         .padding(14)
         .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "E0D8F7")))
+    }
+
+    // MARK: - カスタムパズル画像（本人の画面のみ。公開には出さない）
+
+    private func customImageSection(track: Track) -> some View {
+        let hasCustom = vm.customImages[trackId] != nil
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("パズル画像をカスタマイズ").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                Spacer()
+                Text("本人のみ").font(.system(size: 9, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(Color(hex: "EDE8FF"), in: Capsule())
+            }
+            HStack(spacing: 10) {
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    HStack(spacing: 6) { Image(systemName: "photo"); Text(hasCustom ? "画像を変更" : "画像を選ぶ") }
+                        .font(.system(size: 12, weight: .black)).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 11)
+                        .background(Color(hex: "7248E0"), in: RoundedRectangle(cornerRadius: 12))
+                }
+                if hasCustom {
+                    Button { vm.setCustomImage(nil, for: trackId) } label: {
+                        Text("解除").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                            .frame(maxWidth: .infinity).padding(.vertical, 11)
+                            .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
+        }
+        .padding(16).mlCard()
+        .onChange(of: photoItem) { item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let ui = UIImage(data: data) {
+                    vm.setCustomImage(ui, for: trackId)
+                }
+                photoItem = nil
+            }
+        }
     }
 }

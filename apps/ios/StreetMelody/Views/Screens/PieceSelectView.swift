@@ -76,9 +76,9 @@ struct PieceSelectView: View {
     private func pieceGrid(track: Track, candidate: Candidate) -> some View {
         let owned = track.ownedPieces
         let available = candidate.availablePieces.filter { !owned.contains($0) }
-        let url = track.thumbnailURL
+        let seed = track.id
 
-        // 16:9 を 6×4 に分割。所持ピースはサムネイルの該当領域を切り出して表示し、
+        // 16:9 を 6×4 に分割。所持ピースは独自生成カードの該当領域を切り出して表示し、
         // 取得可能ピースはハイライト＋タップ、取得不可は lockedピースで隠す（設計書 §8.2）。
         return GeometryReader { geo in
             let w = geo.size.width
@@ -89,7 +89,7 @@ struct PieceSelectView: View {
                 ForEach(0..<(cols * rows), id: \.self) { i in
                     let n = i + 1, r = i / cols, c = i % cols
                     pieceCell(n: n, r: r, c: c, owned: owned, available: available,
-                              url: url, color: track.color,
+                              seed: seed, color: track.color,
                               fullW: w, fullH: h, cellW: cellW, cellH: cellH)
                         .frame(width: cellW, height: cellH)
                         .position(x: cellW / 2 + CGFloat(c) * (cellW + gap),
@@ -104,19 +104,13 @@ struct PieceSelectView: View {
 
     @ViewBuilder
     private func pieceCell(n: Int, r: Int, c: Int, owned: [Int], available: [Int],
-                           url: URL?, color: String,
+                           seed: String, color: String,
                            fullW: CGFloat, fullH: CGFloat, cellW: CGFloat, cellH: CGFloat) -> some View {
         if owned.contains(n) {
-            // サムネイルの該当ピース領域を切り出して表示
+            // 独自生成カードの該当ピース領域を切り出して表示
             Color.clear
                 .overlay(alignment: .topLeading) {
-                    Group {
-                        if let url {
-                            CachedThumbnail(url: url)
-                        } else {
-                            artGradient(for: color)
-                        }
-                    }
+                    MelodyCardArtwork(color: color, seed: seed)
                     .frame(width: fullW, height: fullH)
                     .offset(x: -CGFloat(c) * (cellW + gap), y: -CGFloat(r) * (cellH + gap))
                 }

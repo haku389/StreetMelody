@@ -11,6 +11,12 @@ struct StreetMelodyApp: App {
                 .environmentObject(vm)
                 .task { await vm.loadAll() }
                 .preferredColorScheme(.light)
+                .onOpenURL { url in
+                    // Spotify App Remote の認可コールバック（authorizeAndPlayURI の戻り）。
+                    if url.host == "spotify-callback" {
+                        MusicConnectManager.shared.handleSpotifyURL(url)
+                    }
+                }
         }
     }
 }

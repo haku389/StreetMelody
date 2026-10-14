@@ -9,6 +9,8 @@ struct MelodyView: View {
                 screenTitle
                 if vm.encounters.isEmpty {
                     emptyState
+                } else if vm.allEncountersDone {
+                    todaySummary
                 } else {
                     encounterProgress
                     if let enc = vm.activeEncounter {
@@ -25,6 +27,70 @@ struct MelodyView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(hex: "F5F0FF").ignoresSafeArea())
+        .onAppear { vm.ensureActiveEncounter() }
+    }
+
+    private static let timeFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"; f.locale = Locale(identifier: "ja_JP"); return f
+    }()
+
+    // MARK: - 本日のまとめ（全ての出会いを選び終えたら表示）
+
+    private var todaySummary: some View {
+        VStack(spacing: 14) {
+            VStack(spacing: 8) {
+                Text("🎶 今日の出会いは選び終わりました")
+                    .font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+                Text("また新しい人とすれちがうと、次の出会いが届きます")
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity).padding(20).mlCard()
+
+            if vm.todayCollected.isEmpty {
+                Text("今日はまだピースを取得していません")
+                    .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .frame(maxWidth: .infinity).padding(20).mlCard()
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("今日取得したピース（\(vm.todayCollected.count)）")
+                        .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                    ForEach(vm.todayCollected) { item in
+                        summaryRow(item)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading).padding(16).mlCard()
+            }
+        }
+    }
+
+    private func summaryRow(_ item: TodayCollect) -> some View {
+        let track = vm.track(for: item.trackId)
+        return HStack(spacing: 12) {
+            if let t = track {
+                ArtBlockView(track: t, cornerRadius: 12).frame(width: 52, height: 52)
+            } else {
+                RoundedRectangle(cornerRadius: 12).fill(Color(hex: "EDE8FF")).frame(width: 52, height: 52)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("🕒 \(Self.timeFmt.string(from: item.collectedAt)) · 👤 \(item.fromUserName) · 📍\(item.locationLabel)")
+                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                Text(track?.displayArtist ?? "？？？")
+                    .font(.system(size: 13, weight: .black)).foregroundStyle(.primary).lineLimit(1)
+                Text(track?.displayTitle ?? "？？？")
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7248E0")).lineLimit(1)
+                // 取得した“その時点”の所持ピース数（最終結果ではない）
+                Text("この時 \(item.ownedCountAtCollection)/\(track?.pieceCount ?? 24) ピース")
+                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+            }
+            Spacer()
+            if let t = track {
+                Button { vm.navigate(to: t.isUnlocked ? .puzzle(trackId: t.id) : .mystery(trackId: t.id)) } label: {
+                    Image(systemName: "chevron.right").font(.system(size: 14, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     // MARK: - Screen title
@@ -109,37 +175,10 @@ struct MelodyView: View {
                         .multilineTextAlignment(.center)
                 }
 
-                if total > 1 {
-                    HStack(spacing: 8) {
-                        Button {
-                            if vm.activeEncounterIndex > 0 {
-                                vm.activeEncounterIndex -= 1
-                                vm.selectedCandidateIndex = nil
-                                vm.carouselIndex = 0
-                            }
-                        } label: {
-                            Label("前の出会い", systemImage: "chevron.left")
-                                .font(.system(size: 11, weight: .heavy))
-                                .foregroundStyle(vm.activeEncounterIndex > 0 ? Color(hex: "7248E0") : Color(hex: "B8ACD6"))
-                        }
-                        .disabled(vm.activeEncounterIndex <= 0)
-                        Spacer()
-                        Button {
-                            if vm.activeEncounterIndex < vm.encounters.count - 1 {
-                                vm.activeEncounterIndex += 1
-                                vm.selectedCandidateIndex = nil
-                                vm.carouselIndex = 0
-                            }
-                        } label: {
-                            Label("次の出会い", systemImage: "chevron.right")
-                                .font(.system(size: 11, weight: .heavy))
-                                .foregroundStyle(vm.activeEncounterIndex < vm.encounters.count - 1 ? Color(hex: "7248E0") : Color(hex: "B8ACD6"))
-                                .environment(\.layoutDirection, .rightToLeft)
-                        }
-                        .disabled(vm.activeEncounterIndex >= vm.encounters.count - 1)
-                    }
+                // すれ違った順にしか選べない（前の出会いには戻れない）
+                Text("すれ違った順にパズルを選びます（前の人には戻れません）")
+                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
                     .padding(.top, 4)
-                }
             }
         }
         .padding(14)
@@ -164,18 +203,18 @@ struct MelodyView: View {
     }
 
     private func mainCarouselCard(candidate: Candidate, track: Track?) -> some View {
-        // フル表示＝全ピース表示（未解放はモザイク）／ピース確認＝所持ピースのみ表示
+        // フル表示＝全ピース表示（フルピース集めるまではモザイク）／ピース確認＝所持ピースのみ表示
         let isFull = vm.carouselViewMode == "mosaic"
-        let unlocked = track?.isUnlocked ?? false
+        let complete = track?.isComplete ?? false
 
         return VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
-                PuzzlePiecesView(thumbnailURL: track?.thumbnailURL,
-                                 ownedPieces: track?.ownedPieces ?? [],
+                PuzzlePiecesView(ownedPieces: track?.ownedPieces ?? [],
                                  color: track?.color ?? "violet",
+                                 seed: track?.id ?? "",
                                  cornerRadius: 18,
                                  revealAll: isFull,
-                                 blur: isFull && !unlocked)
+                                 blur: isFull && !complete)
                     .overlay(alignment: .bottomTrailing) {
                         Text("\(track?.ownedPieces.count ?? 0) / \(track?.pieceCount ?? 24)")
                             .font(.system(size: 10, weight: .black)).foregroundStyle(.white)
@@ -299,15 +338,6 @@ struct MelodyView: View {
             }
             .disabled(onCooldown)
             .buttonStyle(.plain)
-
-            Button { vm.activeTab = .home } label: {
-                Text("あとで選ぶ")
-                    .font(.system(size: 14, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
-                    .frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 18))
-                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "E0D8F7")))
-            }
-            .buttonStyle(.plain)
         }
         .padding(.bottom, 24)
     }
@@ -328,15 +358,12 @@ struct MelodyView: View {
             ForEach(Array(vm.encounters.enumerated()), id: \.element.id) { i, enc in
                 let isActive = i == vm.activeEncounterIndex
                 let onCooldown = vm.cooldownRemaining(for: enc.id) > 0
-                let isLocked = !onCooldown && !isActive && i > vm.activeEncounterIndex
+                // すれ違った順にしか選べない＝現在の出会い以外はロック（完了は✓表示）
+                let isLocked = !isActive && !onCooldown
                 let isFriend = vm.friends.contains { $0.userId == enc.fromUserId }
 
                 Button {
-                    if !isLocked {
-                        vm.activeEncounterIndex = i
-                        vm.carouselIndex = 0
-                        vm.selectedCandidateIndex = nil
-                    }
+                    // 順番固定のため切り替え操作はしない
                 } label: {
                     HStack(spacing: 12) {
                         Circle()

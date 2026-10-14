@@ -35,6 +35,16 @@ enum Screen: Hashable {
     case shop
     case notifySettings
     case bgSettings
+    case mission
+    case melodyMix
+    case socialList(SocialTab)
+}
+
+/// つながり一覧のタブ（フレンド＝相互フォロー / フォロー中 / フォロワー）。
+enum SocialTab: String, CaseIterable, Hashable {
+    case friends   = "フレンド"
+    case following = "フォロー中"
+    case followers = "フォロワー"
 }
 
 // MARK: - Sub-tab enums
@@ -51,6 +61,17 @@ enum RankingTab: String, CaseIterable {
     case near   = "近く"
     case friend = "友達"
     case all    = "全国"
+}
+
+/// 今日ピースを取得した記録（出会いまとめ表示用）。
+struct TodayCollect: Identifiable {
+    let id = UUID()
+    let fromUserName: String
+    let locationLabel: String
+    let trackId: String
+    let pieceNumber: Int
+    let ownedCountAtCollection: Int   // 取得した“その時点”の所持ピース数（最終結果ではない）
+    let collectedAt: Date             // すれ違い／取得した時刻
 }
 
 // MARK: - AppViewModel
@@ -88,7 +109,16 @@ final class AppViewModel: ObservableObject {
     @Published var friends: [Friend] = []
     @Published var premium: Bool = false
     @Published var linkedServices: [String: Bool] = [:]
+    @Published var nowPlaying: ActivePlayback? = nil      // 今まさに再生中（ライブ・停止中は nil）
+    @Published var sharedFeed: [NowPlaying] = []          // フレンド/公開の今聴いてる曲
+    @Published var nowPlayingShareMode: String = "off"    // 共有範囲: "off" | "bestfriends" | "friends" | "public"
+    @Published var friendCode: String? = nil              // 自分のフレンドコード（user_id）
+    @Published var social: [SupabaseClient.SocialUser] = []  // フォロー関係（フレンド/ベスト判定込み）
+    @Published var nearbyUsers: [NearbyUser] = []            // すれちがった実ユーザー（フォロー導線）
+    @Published var nowPlayingBusy = false                 // 連携処理中のスピナー
     @Published var hintTickets: Int = 0
+    @Published var customImages: [String: Data] = [:]   // trackId -> 画像（本人画面のみ表示。公開には出さない）
+    @Published var avatarImageData: Data? = nil          // プロフィールアイコン（ローカル保存）
     @Published var ownedDecorations: [String] = []
     @Published var equippedDecoration: String? = nil
 
@@ -110,6 +140,10 @@ final class AppViewModel: ObservableObject {
 
     @Published var carouselIndex: Int = 0
     @Published var carouselViewMode: String = "pieces"  // "pieces" | "mosaic"
+    @Published var todayCollected: [TodayCollect] = []  // 今日ピースを取得した記録（まとめ表示用）
+
+    /// 今日の出会いをすべて選び終えたか（全てクールタイム中）。
+    var allEncountersDone: Bool { !encounters.isEmpty && encounters.allSatisfy { cooldownRemaining(for: $0.id) > 0 } }
     @Published var encounterCooldowns: [String: Date] = [:]
 
     // MARK: Published - puzzle complete / title celebration
@@ -173,7 +207,7 @@ final class AppViewModel: ObservableObject {
         s.coins = coins; s.exp = exp
         s.oshiTrackIds = oshiTrackIds; s.unlockedTrackIds = unlockedTrackIds
         s.friends = friends; s.premium = premium
-        s.linkedServices = linkedServices; s.hintTickets = hintTickets
+        s.linkedServices = linkedServices; s.nowPlayingShareMode = nowPlayingShareMode; s.hintTickets = hintTickets
         s.ownedDecorations = ownedDecorations; s.equippedDecoration = equippedDecoration
         s.notifyImmediate = notifyImmediate; s.notifyDigest = notifyDigest
         s.notifyDigestTime = notifyDigestTime; s.notifyEncounter = notifyEncounter
@@ -182,6 +216,8 @@ final class AppViewModel: ObservableObject {
         s.encounterCooldowns = encounterCooldowns
         s.missionCurrent = mission?.current
         s.previewPlays = previewPlays
+        s.customImages = customImages.mapValues { $0.base64EncodedString() }
+        s.avatarImage = avatarImageData?.base64EncodedString()
         if let data = try? JSONEncoder().encode(s) {
             UserDefaults.standard.set(data, forKey: Self.saveKey)
         }
@@ -210,7 +246,7 @@ final class AppViewModel: ObservableObject {
         coins = s.coins; exp = s.exp
         oshiTrackIds = s.oshiTrackIds; unlockedTrackIds = s.unlockedTrackIds
         friends = s.friends; premium = s.premium
-        linkedServices = s.linkedServices; hintTickets = s.hintTickets
+        linkedServices = s.linkedServices; nowPlayingShareMode = s.nowPlayingShareMode; hintTickets = s.hintTickets
         ownedDecorations = s.ownedDecorations; equippedDecoration = s.equippedDecoration
         notifyImmediate = s.notifyImmediate; notifyDigest = s.notifyDigest
         notifyDigestTime = s.notifyDigestTime; notifyEncounter = s.notifyEncounter
@@ -218,6 +254,8 @@ final class AppViewModel: ObservableObject {
         bgScanEnabled = s.bgScanEnabled; bgScanMode = s.bgScanMode; bgNightPause = s.bgNightPause
         encounterCooldowns = s.encounterCooldowns
         previewPlays = s.previewPlays
+        customImages = s.customImages.compactMapValues { Data(base64Encoded: $0) }
+        avatarImageData = s.avatarImage.flatMap { Data(base64Encoded: $0) }
         if let mc = s.missionCurrent, let m = mission {
             mission = Mission(userId: m.userId, date: m.date, label: m.label,
                               current: mc, target: m.target, rewardCoins: m.rewardCoins)
@@ -246,9 +284,15 @@ final class AppViewModel: ObservableObject {
         }
         // すべての seed/API ロード後に保存済み進行を反映
         restoreState()
+        // 再生中の曲（ライブ）の購読を開始（連携済みサービスを監視）
+        startNowPlayingObservation()
         // 方式A: Supabase の自分の進行（所持ピース・解放）を seed/ローカルにマージ
         await mergeRemoteProgress()
         await refreshAccountState()
+        await loadSocialGraph()
+        await loadProfile()
+        startNearbyExchange()   // すれちがい開始
+        if needsProfileSetup { showProfileEdit = true }   // オンボーディング
     }
 
     private func loadUser() async {
@@ -366,37 +410,35 @@ final class AppViewModel: ObservableObject {
             }
         }
 
-        // Set cooldown
+        // Set cooldown（この出会いは選択済み）
         encounterCooldowns[encounterId] = Date()
 
-        // Navigate: pop piece select, then push mystery/puzzle
-        goBack()
-        if let track = tracks[trackId] {
-            if track.isUnlocked {
-                navigate(to: .puzzle(trackId: trackId))
-            } else {
-                navigate(to: .mystery(trackId: trackId))
-            }
-        }
-
-        // ピース取得直後の導線をセット（navigate 後に設定し、goBack で消えないようにする）
+        // 本日の取得を記録（まとめ表示用）＆既存フレンドは交換回数を加算
         if wasNewPiece {
+            todayCollected.append(TodayCollect(fromUserName: enc.fromUserName,
+                                               locationLabel: enc.locationLabel,
+                                               trackId: trackId, pieceNumber: pieceNumber,
+                                               ownedCountAtCollection: tracks[trackId]?.ownedPieces.count ?? 0,
+                                               collectedAt: Date()))
             if let i = friends.firstIndex(where: { $0.userId == enc.fromUserId }) {
-                // 既存フレンドは交換回数を加算
                 friends[i].exchangeCount += 1
                 let f = friends[i]
                 Task { await SupabaseClient.shared.upsertFriend(name: f.userName, location: f.locationLabel, exchangeCount: f.exchangeCount) }
-                pendingFriendAdd = nil
-            } else {
-                pendingFriendAdd = PendingFriend(userId: enc.fromUserId,
-                                                 userName: enc.fromUserName,
-                                                 locationLabel: enc.locationLabel)
             }
-            showNextEncounterPrompt = true
         }
 
+        // ピース選択画面を閉じ、次の出会いへ自動遷移（無ければメロディ＝まとめ表示）
+        clearCollectPrompts()
+        navigationStack = []
+        if let idx = encounters.firstIndex(where: { cooldownRemaining(for: $0.id) == 0 }) {
+            activeEncounterIndex = idx
+            carouselIndex = 0
+            selectedCandidateIndex = nil
+        }
+        activeTab = .melody
+
         if wasNewPiece && !puzzleJustCompleted {
-            showToast("ピースを獲得しました！")
+            showToast("ピースを獲得しました！次の出会いへ")
         }
     }
 
@@ -410,6 +452,16 @@ final class AppViewModel: ObservableObject {
     }
 
     func dismissFriendPrompt() { pendingFriendAdd = nil }
+
+    /// 現在の出会いを「すれ違った順の次の未選択」に合わせる（戻れない・順番固定）。
+    func ensureActiveEncounter() {
+        if let cur = encounters[safe: activeEncounterIndex], cooldownRemaining(for: cur.id) == 0 { return }
+        if let idx = encounters.firstIndex(where: { cooldownRemaining(for: $0.id) == 0 }) {
+            activeEncounterIndex = idx
+            carouselIndex = 0
+            selectedCandidateIndex = nil
+        }
+    }
 
     /// クールタイム中でない次の出会いへ進む（無ければ完了状態）
     func goToNextEncounter() {
@@ -451,32 +503,46 @@ final class AppViewModel: ObservableObject {
         return max(0, Self.previewDailyLimit - rec.count)
     }
 
-    /// 試聴できるか（実在の YouTube 動画があり、本日の回数が残っている）
+    /// 試聴できるか（実在の YouTube 動画がある／解放済みは無制限・未解放は本日の回数内）
     func canPreview(trackId: String) -> Bool {
         guard let t = tracks[trackId], t.hasYouTubeVideo else { return false }
+        if t.isUnlocked { return true }                 // 解放済みは無制限
         return previewPlaysLeft(trackId: trackId) > 0
     }
 
-    /// 試聴を開始（回数を記録し、プレイヤーを表示）
+    /// 試聴を開始（未解放は回数を記録。解放済みは無制限）
     func startPreview(trackId: String) {
         guard let t = tracks[trackId], t.hasYouTubeVideo else {
             showToast("この曲はプロトタイプのため試聴できません")
             return
         }
-        guard previewPlaysLeft(trackId: trackId) > 0 else {
-            showToast("この曲の本日の試聴回数を使い切りました（1日3回まで）")
-            return
-        }
-        let today = todayKey()
-        if let rec = previewPlays[trackId], rec.date == today {
-            previewPlays[trackId] = PreviewRecord(date: today, count: rec.count + 1)
-        } else {
-            previewPlays[trackId] = PreviewRecord(date: today, count: 1)
+        if !t.isUnlocked {
+            guard previewPlaysLeft(trackId: trackId) > 0 else {
+                showToast("この曲の本日の試聴回数を使い切りました（1日3回まで）")
+                return
+            }
+            let today = todayKey()
+            if let rec = previewPlays[trackId], rec.date == today {
+                previewPlays[trackId] = PreviewRecord(date: today, count: rec.count + 1)
+            } else {
+                previewPlays[trackId] = PreviewRecord(date: today, count: 1)
+            }
         }
         previewTrackId = trackId
     }
 
     func endPreview() { previewTrackId = nil }
+
+    // 完成パズルの YouTube MV（映像つきフル再生）
+    @Published var mvTrackId: String? = nil
+    func playMV(trackId: String) {
+        guard let t = tracks[trackId], t.hasYouTubeVideo else {
+            showToast("この曲はMVを再生できません")
+            return
+        }
+        mvTrackId = trackId
+    }
+    func endMV() { mvTrackId = nil }
 
     private func checkTitleUnlocks() {
         for title in self.titles {
@@ -546,15 +612,15 @@ final class AppViewModel: ObservableObject {
         case .hint1:
             track.hintLevel = max(track.hintLevel, 1)
             tracks[trackId] = track
-            showToast(prefix + "1つ目のヒントを解放しました")
+            showToast(prefix + "ジャンル・年代・雰囲気のヒントを表示しました")
         case .hint2:
             track.hintLevel = max(track.hintLevel, 2)
             tracks[trackId] = track
-            showToast(prefix + "2つ目のヒント（4択）を解放しました")
+            showToast(prefix + "曲名の文字が一部開きました")
         case .answer:
-            track.answerReady = true
-            tracks[trackId] = track
-            showToast(prefix + "YouTube確認で曲名を解放できます")
+            // 著作権/方針変更：広告・課金で答えを即解放する導線は廃止。
+            // Lv3 は Apple Music / iTunes での確認導線（applyHint では何もしない）。
+            break
         }
         // 方式A: ヒント状態を Supabase に保存（バックグラウンド・UI を待たせない）
         let lvl = track.hintLevel, ready = track.answerReady
@@ -588,6 +654,30 @@ final class AppViewModel: ObservableObject {
         return false
     }
 
+    // MARK: カスタムパズル画像（本人画面のみ表示。公開フィード/ランキング/共有には出さない）
+
+    func customUIImage(for trackId: String) -> UIImage? {
+        customImages[trackId].flatMap { UIImage(data: $0) }
+    }
+
+    // MARK: プロフィールアイコン
+    func avatarUIImage() -> UIImage? { avatarImageData.flatMap { UIImage(data: $0) } }
+    func setAvatar(_ image: UIImage?) {
+        avatarImageData = image?.jpegData(compressionQuality: 0.8)
+        showToast(image == nil ? "アイコンを初期化しました" : "アイコンを変更しました")
+        persistIfLoaded()
+    }
+    func setCustomImage(_ image: UIImage?, for trackId: String) {
+        if let image, let data = image.jpegData(compressionQuality: 0.7) {
+            customImages[trackId] = data
+            showToast("カスタム画像を設定しました（本人の画面のみ表示）")
+        } else {
+            customImages.removeValue(forKey: trackId)
+            showToast("カスタム画像を解除しました")
+        }
+        persistIfLoaded()
+    }
+
     func addListenLater(trackId: String) async {
         if let _ = try? await repository.addListenLater(trackId: trackId) {
             showToast("あとで聴くに追加しました")
@@ -607,8 +697,234 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    // MARK: - 音楽サービス連携（ログインとは別）
+
+    private var nowPlayingCancellable: AnyCancellable?
+
+    /// 起動時に1回呼ぶ。再生中の曲（ライブ）の購読を開始する。
+    func startNowPlayingObservation() {
+        let mgr = MusicConnectManager.shared
+        // Apple Music は認可済みなら無条件で監視開始（connect フラグに依存しない）
+        mgr.startAppleObservation()
+        if linkedServices["spotify"] == true { Task { await mgr.ensureSpotifyConnected() } }
+        // マネージャの「今再生中」を VM にミラーし、共有ONなら Supabase に反映
+        nowPlayingCancellable = mgr.$active
+            .receive(on: RunLoop.main)
+            .sink { [weak self] active in
+                guard let self else { return }
+                self.nowPlaying = active
+                Task { await self.syncSharedNowPlaying(active) }
+            }
+    }
+
+    /// 共有ONのとき、再生中の曲を Supabase に反映（停止/共有OFFは削除）。
+    private func syncSharedNowPlaying(_ active: ActivePlayback?) async {
+        guard nowPlayingShareMode != "off" else { return }
+        if let a = active {
+            await SupabaseClient.shared.upsertNowPlaying(
+                service: a.service.rawValue, title: a.track.title, artist: a.track.artist,
+                artworkUrl: a.track.artworkUrl, startedAt: a.track.startedAt,
+                visibility: nowPlayingShareMode, displayName: user?.name)
+        } else {
+            await SupabaseClient.shared.clearNowPlaying()
+        }
+    }
+
+    /// 連携トグル。接続済みなら解除、未接続なら接続フローへ。
     func toggleService(_ serviceId: String) {
-        linkedServices[serviceId] = !(linkedServices[serviceId] ?? false)
+        if linkedServices[serviceId] == true { disconnectMusicService(serviceId) }
+        else { Task { await connectMusicService(serviceId) } }
+    }
+
+    /// サービスを連携する（Spotify=App Remote / Apple Music=ライブラリ許可 / YouTube=手動共有のみ）。
+    func connectMusicService(_ serviceId: String) async {
+        let kind = MusicService(rawValue: serviceId) ?? .manual
+        nowPlayingBusy = true
+        defer { nowPlayingBusy = false }
+        switch kind {
+        case .spotify:
+            do {
+                try await MusicConnectManager.shared.connectSpotify()
+                linkedServices[serviceId] = true
+                showToast("🎵 Spotify と連携しました")
+            } catch {
+                let m = (error as? MusicConnectManager.MusicError)?.errorDescription ?? error.localizedDescription
+                showToast("Spotify 連携に失敗: \(m)")
+            }
+        case .appleMusic:
+            let ok = await MusicConnectManager.shared.requestAppleMusicAuth()
+            if ok {
+                linkedServices[serviceId] = true
+                showToast("🎵 Apple Music と連携しました")
+            } else {
+                showToast("Apple Music の許可が必要です（設定 → StreetMelody で許可）")
+            }
+        case .youtubeMusic, .manual:
+            linkedServices[serviceId] = true
+            showToast("YouTube Music を連携しました（共有は手動入力）")
+        }
+    }
+
+    /// 連携を解除する。
+    func disconnectMusicService(_ serviceId: String) {
+        linkedServices[serviceId] = false
+        let kind = MusicService(rawValue: serviceId) ?? .manual
+        if kind == .spotify { MusicConnectManager.shared.disconnectSpotify() }
+        showToast("\(kind.displayName) との連携を解除しました")
+    }
+
+    // MARK: 再生操作（ホームのミニプレイヤー）
+
+    func musicTogglePlayPause() { MusicConnectManager.shared.togglePlayPause() }
+    func musicNext()            { MusicConnectManager.shared.next() }
+    func musicPrevious()        { MusicConnectManager.shared.previous() }
+
+    /// 共有範囲を設定（"off" | "bestfriends" | "friends" | "public"）。即時に反映/取り下げ。
+    func setNowPlayingShareMode(_ mode: String) {
+        nowPlayingShareMode = mode
+        Task {
+            if mode == "off" { await SupabaseClient.shared.clearNowPlaying() }
+            else { await syncSharedNowPlaying(nowPlaying) }
+            let label: String
+            switch mode {
+            case "bestfriends": label = "ベストフレンドに共有します"
+            case "friends":     label = "フレンドに共有します"
+            case "public":      label = "全体に公開します"
+            default:            label = "共有をやめました"
+            }
+            showToast(label)
+        }
+    }
+
+    // MARK: プロフィール
+
+    @Published var profile = SupabaseClient.UserProfile()
+    @Published var showProfileEdit = false
+
+    /// 実アカウントなのに handle 未設定ならオンボーディングが必要。
+    var needsProfileSetup: Bool { !isGuestAccount && (profile.handle?.isEmpty ?? true) }
+
+    func loadProfile() async {
+        if let p = await SupabaseClient.shared.fetchMyProfile() { profile = p }
+    }
+    func saveProfile(_ p: SupabaseClient.UserProfile) async -> String? {
+        do {
+            try await SupabaseClient.shared.updateMyProfile(p)
+            profile = p
+            showToast("プロフィールを保存しました")
+            return nil
+        } catch {
+            return (error as? SupabaseClient.OAuthError)?.errorDescription ?? "保存に失敗しました（通信をご確認ください）"
+        }
+    }
+    func checkHandle(_ h: String) async -> Bool { await SupabaseClient.shared.checkHandleAvailable(h) }
+
+    /// サインイン/連携の直後に呼ぶ。プロフィール未設定なら設定画面（オンボーディング）を出す。
+    func presentOnboardingIfNeeded() async {
+        await loadProfile()
+        await loadSocialGraph()
+        if needsProfileSetup { showProfileEdit = true }
+    }
+
+    // MARK: メロディ（自分のテーマ）
+
+    /// 自分のメロディ（user_id シードで生成）を割り当て音色で試聴。
+    func playMyMelody() {
+        let seed = friendCode ?? "streetmelody"
+        MelodyPlayer.shared.play(MelodyGenerator.generate(seed: seed), timbre: Timbre.forSeed(seed))
+    }
+    /// 自分に割り当てられた音色名。
+    var myTimbreName: String { Timbre.forSeed(friendCode ?? "streetmelody").name }
+
+    // MARK: メロディミックス（2人のメロディを重ねて再生＝ベスト成立の儀式）
+
+    private var mySeed: String { friendCode ?? "streetmelody" }
+    func timbreName(forSeed seed: String) -> String { Timbre.forSeed(seed.isEmpty ? "partner" : seed).name }
+
+    /// 相手（seed）のメロディを試聴。
+    func playPartnerMelody(seed: String) {
+        let s = seed.isEmpty ? "partner" : seed
+        MelodyPlayer.shared.play(MelodyGenerator.generate(seed: s), timbre: Timbre.forSeed(s))
+    }
+
+    /// 自分＋相手のメロディを混ぜて再生。
+    func playMelodyMix(partnerSeed: String) {
+        let partner = partnerSeed.isEmpty ? "partner" : partnerSeed
+        let me = MelodyGenerator.generate(seed: mySeed)
+        let them = MelodyGenerator.generate(seed: partner)
+        MelodyPlayer.shared.playMix(me, timbreA: Timbre.forSeed(mySeed),
+                                    them, timbreB: Timbre.forSeed(partner))
+    }
+    func stopMelody() { MelodyPlayer.shared.stop() }
+
+    // MARK: フォロー / フレンド / ベストフレンド
+
+    func loadSocialGraph() async { social = await SupabaseClient.shared.fetchSocialGraph() }
+
+    // MARK: すれちがい（BLE で実ユーザー交換 → フォロー導線）
+
+    private var nearbyStarted = false
+    /// 自分の user_id を広告し、近距離の実ユーザーを検出する。
+    func startNearbyExchange() {
+        guard let uid = friendCode, !nearbyStarted else { return }
+        nearbyStarted = true
+        bleManager.onNewNearby = { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.nearbyUsers = self.bleManager.nearbyUsers
+                self.showToast("🤝 すれちがい！フォローできます")
+            }
+        }
+        nearbyUsers = bleManager.nearbyUsers
+        bleManager.start(userId: uid)
+    }
+
+    /// すれちがった相手をフォロー（相互フォローでフレンド成立）。
+    func followNearby(_ userId: String, nickname: String) async {
+        await followByCode(code: userId, nickname: nickname.isEmpty ? "すれちがい" : nickname)
+        nearbyUsers.removeAll { $0.userId == userId }
+    }
+
+    /// コードでフォロー（相互フォローでフレンド成立）。
+    func followByCode(code: String, nickname: String) async {
+        do {
+            try await SupabaseClient.shared.followUser(code: code, nickname: nickname)
+            showToast("フォローしました")
+            await loadSocialGraph()
+            await loadSharedFeed()
+        } catch {
+            let m = (error as? SupabaseClient.OAuthError)?.errorDescription ?? "フォローに失敗しました"
+            showToast(m)
+        }
+    }
+
+    func unfollow(_ userId: String) async {
+        await SupabaseClient.shared.unfollowUser(userId)
+        await loadSocialGraph()
+        await loadSharedFeed()
+    }
+
+    /// ベストフレンド指定の切替（フレンド＝相互フォローのみ対象を想定）。
+    func toggleBestFriend(_ userId: String, isBest: Bool) async {
+        await SupabaseClient.shared.setBestFriend(userId, isBest: isBest)
+        await loadSocialGraph()
+        showToast(isBest ? "ベストフレンドに追加" : "ベストフレンドから外しました")
+    }
+
+    /// 手動で曲名を共有（YouTube Music 等・公式APIが無いサービス向け）。共有範囲は現在の設定（オフなら公開扱い）。
+    func shareManualNowPlaying(title: String, artist: String?) async {
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        let vis = nowPlayingShareMode == "off" ? "public" : nowPlayingShareMode
+        await SupabaseClient.shared.upsertNowPlaying(
+            service: MusicService.manual.rawValue, title: t, artist: artist,
+            artworkUrl: nil, startedAt: nil, visibility: vis, displayName: user?.name)
+        showToast("今聴いてる曲を共有しました")
+    }
+
+    /// 公開フィード（みんなの今聴いてる曲）を読み込む。
+    func loadSharedFeed() async {
+        sharedFeed = await SupabaseClient.shared.fetchSharedNowPlaying()
     }
 
     func buyPremium() {
@@ -791,6 +1107,7 @@ final class AppViewModel: ObservableObject {
     func refreshAccountState() async {
         accountEmail = await SupabaseClient.shared.email
         isGuestAccount = await SupabaseClient.shared.isAnonymous
+        friendCode = await SupabaseClient.shared.myFriendCode()
     }
 
     /// 匿名アカウントにメール＋パスワードを設定して永続化（成功時 nil、失敗時エラー文）。
@@ -799,6 +1116,7 @@ final class AppViewModel: ObservableObject {
         do {
             let active = try await SupabaseClient.shared.upgradeToEmail(email, password)
             await refreshAccountState()
+            if active { await presentOnboardingIfNeeded() }
             showToast(active ? "アカウントを連携しました（メールで復元できます）"
                              : "確認メールを送信しました。メール内のリンクをタップすると連携完了です")
             return nil
@@ -813,6 +1131,7 @@ final class AppViewModel: ObservableObject {
             _ = try await SupabaseClient.shared.signInWithEmail(email, password)
             await refreshAccountState()
             await mergeRemoteProgress()
+            await presentOnboardingIfNeeded()
             showToast("ログインしました。進行を復元しました")
             return nil
         } catch {
@@ -838,6 +1157,7 @@ final class AppViewModel: ObservableObject {
             try await action()
             await refreshAccountState()
             await mergeRemoteProgress()
+            await presentOnboardingIfNeeded()
             showToast(link ? "\(name) と連携しました（進行はそのまま）" : "\(name) でログインしました")
             return nil
         } catch {

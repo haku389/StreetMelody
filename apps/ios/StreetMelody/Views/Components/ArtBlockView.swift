@@ -33,76 +33,114 @@ func artGradient(for color: String) -> LinearGradient {
     }
 }
 
-// MARK: - ArtBlockView
+// MARK: - MelodyCardArtwork（MelodyLien独自生成アート）
+//
+// 著作権方針：公式MVサムネ・ジャケット・アーティスト画像は一切使わない。
+// 曲ごとに id から決定的に生成する独自アート（ジャンル色＋雰囲気色＋波形＋音符＋パズル模様）。
+// customImage が渡された場合（本人画面のみ）はその画像を表示する。
+struct MelodyCardArtwork: View {
+    var color: String = "violet"
+    var seed: String = ""
+    var customImage: UIImage? = nil
+    var blur: Bool = false
 
-/// 曲アート（正方形〜任意比率）。サムネイルがあれば中央を切り抜いて表示し、
-/// 未解放（mosaic）の場合はネタバレ防止でぼかし（モザイク）をかける。
-/// サムネイルが無い架空曲はグラデーション＋擬似パズルグリッドで表示する。
-struct ArtBlockView: View {
-    let color: String
-    var cornerRadius: CGFloat = 18
-    var thumbnailURL: URL? = nil
-    var mosaic: Bool = false
-
-    /// Track から直接生成する便利イニシャライザ。
-    /// 解放済み＝鮮明 / 未解放＝モザイクを自動で出し分ける。
-    init(color: String, cornerRadius: CGFloat = 18, thumbnailURL: URL? = nil, mosaic: Bool = false) {
-        self.color = color
-        self.cornerRadius = cornerRadius
-        self.thumbnailURL = thumbnailURL
-        self.mosaic = mosaic
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            ZStack {
+                if let ui = customImage {
+                    Image(uiImage: ui).resizable().scaledToFill().frame(width: w, height: h).clipped()
+                } else {
+                    artGradient(for: color)
+                    RadialGradient(colors: [Self.moodColor(seed).opacity(0.5), .clear],
+                                   center: .topTrailing, startRadius: 0, endRadius: max(w, h) * 0.95)
+                    puzzleGrid(w: w, h: h)
+                    waveform(w: w, h: h)
+                    Image(systemName: "music.note")
+                        .font(.system(size: min(w, h) * 0.26, weight: .black))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                }
+            }
+            .frame(width: w, height: h)
+            .blur(radius: blur ? 14 : 0)
+        }
     }
 
-    init(track: Track, cornerRadius: CGFloat = 18) {
-        self.init(color: track.color,
-                  cornerRadius: cornerRadius,
-                  thumbnailURL: track.thumbnailURL,
-                  mosaic: !track.isUnlocked)
+    private func puzzleGrid(w: CGFloat, h: CGFloat) -> some View {
+        Path { p in
+            for i in 1..<6 { let x = w * CGFloat(i) / 6; p.move(to: .init(x: x, y: 0)); p.addLine(to: .init(x: x, y: h)) }
+            for j in 1..<4 { let y = h * CGFloat(j) / 4; p.move(to: .init(x: 0, y: y)); p.addLine(to: .init(x: w, y: y)) }
+        }.stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+    }
+
+    private func waveform(w: CGFloat, h: CGFloat) -> some View {
+        let bars = Self.bars(seed)
+        let n = bars.count
+        return HStack(spacing: w / CGFloat(n) * 0.36) {
+            ForEach(0..<n, id: \.self) { i in
+                Capsule().fill(Color.white.opacity(0.55))
+                    .frame(width: w / CGFloat(n) * 0.62, height: max(4, h * 0.5 * bars[i]))
+            }
+        }
+        .frame(width: w, height: h, alignment: .center)
+    }
+
+    static func bars(_ seed: String) -> [CGFloat] {
+        var h = Track.mlHash(seed.isEmpty ? "melody" : seed)
+        return (0..<18).map { _ in
+            h = h &* 6364136223846793005 &+ 1442695040888963407
+            return 0.25 + CGFloat((h >> 33) % 1000) / 1000 * 0.75
+        }
+    }
+    static func moodColor(_ seed: String) -> Color {
+        let palette = ["FFB0BF", "8EE7FF", "C0ADFF", "FFD27A", "80D8B5", "FF8EB5"]
+        return Color(hex: palette[Int(Track.mlHash(seed.isEmpty ? "m" : seed) % UInt64(palette.count))])
+    }
+}
+
+// MARK: - ArtBlockView
+
+/// 曲アート（正方形〜任意比率）。MelodyLien独自生成カードを表示する。
+/// customImage は本人画面のみ渡す（公開表示では常に nil＝生成カード）。
+struct ArtBlockView: View {
+    var color: String = "violet"
+    var cornerRadius: CGFloat = 18
+    var seed: String = ""
+    var customImage: UIImage? = nil
+
+    init(color: String, cornerRadius: CGFloat = 18, customImage: UIImage? = nil) {
+        self.color = color
+        self.cornerRadius = cornerRadius
+        self.customImage = customImage
+    }
+
+    init(track: Track, cornerRadius: CGFloat = 18, customImage: UIImage? = nil) {
+        self.color = track.color
+        self.cornerRadius = cornerRadius
+        self.seed = track.id
+        self.customImage = customImage
     }
 
     var body: some View {
-        ZStack {
-            artGradient(for: color)
-            // puzzle grid overlay（サムネイルが無いときの雰囲気づけ）
-            if thumbnailURL == nil {
-                GeometryReader { geo in
-                    Path { path in
-                        let w = geo.size.width
-                        let h = geo.size.height
-                        let t1x = w * 0.33, t2x = w * 0.66
-                        let t1y = h * 0.33, t2y = h * 0.66
-                        path.move(to: CGPoint(x: t1x, y: 0)); path.addLine(to: CGPoint(x: t1x, y: h))
-                        path.move(to: CGPoint(x: t2x, y: 0)); path.addLine(to: CGPoint(x: t2x, y: h))
-                        path.move(to: CGPoint(x: 0, y: t1y)); path.addLine(to: CGPoint(x: w, y: t1y))
-                        path.move(to: CGPoint(x: 0, y: t2y)); path.addLine(to: CGPoint(x: w, y: t2y))
-                    }
-                    .stroke(Color.white.opacity(0.46), lineWidth: 1)
-                }
-            }
-            if let url = thumbnailURL {
-                CachedThumbnail(url: url)
-                    .blur(radius: mosaic ? 10 : 0)
-                    .scaleEffect(mosaic ? 1.15 : 1)   // ぼかしの縁が透けないよう少し拡大
-            }
-            if mosaic {
-                Color.black.opacity(0.06)
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color.white.opacity(0.45), lineWidth: 1))
+        MelodyCardArtwork(color: color, seed: seed, customImage: customImage)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color.white.opacity(0.45), lineWidth: 1))
     }
 }
 
 // MARK: - PuzzlePiecesView
 
 /// 設計書準拠の 6×4＝24ピースのパズル表示。
-/// 所持ピースだけサムネイルを見せ、未所持は lockedピース（淡い紫）で隠す。
+/// 所持ピースだけ独自生成カードを見せ、未所持は lockedピース（淡い紫）で隠す。
 /// - revealAll: フル表示（全ピースを見せる）
 /// - blur: モザイク（未解放曲のフル表示などで使用）
+/// - customImage: 本人画面のみ。公開表示では nil（生成カード）。
 struct PuzzlePiecesView: View {
-    let thumbnailURL: URL?
     let ownedPieces: [Int]
     var color: String = "violet"
+    var seed: String = ""
+    var customImage: UIImage? = nil
     var cornerRadius: CGFloat = 16
     var revealAll: Bool = false
     var blur: Bool = false
@@ -124,16 +162,9 @@ struct PuzzlePiecesView: View {
                         .fill(Color(hex: "E3DAF5"))
                         .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color(hex: "D3C7EE"), lineWidth: 0.5))
                 }
-                // サムネイル（所持ピースのみマスク表示）
-                Group {
-                    if let url = thumbnailURL {
-                        CachedThumbnail(url: url)
-                    } else {
-                        artGradient(for: color)
-                    }
-                }
+                // 独自生成カード（所持ピースのみマスク表示）
+                MelodyCardArtwork(color: color, seed: seed, customImage: customImage, blur: blur)
                 .frame(width: w, height: h)
-                .blur(radius: blur ? 16 : 0)
                 .mask(
                     pieceGrid(w: w, h: h) { n in
                         Rectangle().fill(isVisible(n) ? Color.white : Color.clear)

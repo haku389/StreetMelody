@@ -97,10 +97,7 @@ struct CollectionView: View {
                         .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
                 }
                 ForEach(incomplete.sorted { $0.id < $1.id }) { track in
-                    Button {
-                        vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id))
-                    } label: { trackRow(track: track) }
-                    .buttonStyle(.plain)
+                    trackRow(track: track)
                 }
             }
             .padding(16).mlCard()
@@ -113,17 +110,15 @@ struct CollectionView: View {
                 } else {
                     LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 12) {
                         ForEach(complete.sorted { $0.id < $1.id }) { track in
-                            Button {
-                                vm.navigate(to: .puzzle(trackId: track.id))
-                            } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    ArtBlockView(track: track, cornerRadius: 14).aspectRatio(1, contentMode: .fit)
-                                    Text(track.isUnlocked ? track.title ?? "—" : "未解放")
-                                        .font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(.primary)
-                                    Text("完成！").font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "1A9E6E"))
-                                }
+                            VStack(alignment: .leading, spacing: 6) {
+                                ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).aspectRatio(1, contentMode: .fit)
+                                    .overlay(alignment: .bottomTrailing) { playButton(track, size: 26).padding(5) }
+                                Text(track.isUnlocked ? track.title ?? "—" : "未解放")
+                                    .font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(.primary)
+                                Text("完成！").font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "1A9E6E"))
                             }
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
+                            .onTapGesture { vm.navigate(to: .puzzle(trackId: track.id)) }
                         }
                     }
                 }
@@ -134,18 +129,39 @@ struct CollectionView: View {
 
     private func trackRow(track: Track) -> some View {
         HStack(spacing: 12) {
-            ArtBlockView(track: track, cornerRadius: 14).frame(width: 48, height: 48)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
-                    .font(.system(size: 12, weight: .black)).lineLimit(1).foregroundStyle(.primary)
-                Text(track.displayArtist)
-                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
-                ProgressBarView(value: Double(track.ownedPieces.count) / Double(max(track.pieceCount, 1)))
-                    .frame(height: 4)
+            // タップで詳細へ（再生ボタンとは別領域）
+            Button {
+                vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id))
+            } label: {
+                HStack(spacing: 12) {
+                    ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).frame(width: 48, height: 48)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
+                            .font(.system(size: 12, weight: .black)).lineLimit(1).foregroundStyle(.primary)
+                        Text(track.displayArtist)
+                            .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        ProgressBarView(value: Double(track.ownedPieces.count) / Double(max(track.pieceCount, 1)))
+                            .frame(height: 4)
+                    }
+                    Spacer()
+                    Text("\(track.ownedPieces.count)/\(track.pieceCount)")
+                        .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7B6F8A"))
+                }
             }
-            Spacer()
-            Text("\(track.ownedPieces.count)/\(track.pieceCount)")
-                .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7B6F8A"))
+            .buttonStyle(.plain)
+            playButton(track)
+        }
+    }
+
+    /// 試聴（30秒）ボタン。YouTube動画があり本日の回数が残っていれば再生。
+    @ViewBuilder private func playButton(_ track: Track, size: CGFloat = 30) -> some View {
+        if track.hasYouTubeVideo {
+            Button { vm.startPreview(trackId: track.id) } label: {
+                Image(systemName: "play.circle.fill").font(.system(size: size))
+                    .foregroundStyle(vm.canPreview(trackId: track.id) ? Color(hex: "7248E0") : Color(hex: "C9BEF0"))
+            }
+            .buttonStyle(.plain)
+            .disabled(!vm.canPreview(trackId: track.id))
         }
     }
 
@@ -185,20 +201,18 @@ struct CollectionView: View {
             }
             LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 10) {
                 ForEach(group.tracks) { track in
-                    Button {
-                        vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id))
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ArtBlockView(track: track, cornerRadius: 14).aspectRatio(1, contentMode: .fit)
-                            Text(track.isUnlocked ? track.title ?? "—" : "未解放")
-                                .font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(.primary)
-                            let done = track.isComplete
-                            Text(done ? "完成!" : track.ownedPieces.isEmpty ? "未入手" : "あと\(track.pieceCount - track.ownedPieces.count)")
-                                .font(.system(size: 9, weight: .heavy))
-                                .foregroundStyle(done ? Color(hex: "1A9E6E") : Color(hex: "7B6F8A"))
-                        }
+                    VStack(alignment: .leading, spacing: 6) {
+                        ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).aspectRatio(1, contentMode: .fit)
+                            .overlay(alignment: .bottomTrailing) { playButton(track, size: 24).padding(5) }
+                        Text(track.isUnlocked ? track.title ?? "—" : "未解放")
+                            .font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(.primary)
+                        let done = track.isComplete
+                        Text(done ? "完成!" : track.ownedPieces.isEmpty ? "未入手" : "あと\(track.pieceCount - track.ownedPieces.count)")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(done ? Color(hex: "1A9E6E") : Color(hex: "7B6F8A"))
                     }
-                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .onTapGesture { vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id)) }
                 }
             }
         }
@@ -232,7 +246,7 @@ struct CollectionView: View {
                     LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 12) {
                         ForEach(oshiTracks) { track in
                             VStack(alignment: .leading, spacing: 6) {
-                                ArtBlockView(track: track).aspectRatio(1, contentMode: .fit)
+                                ArtBlockView(track: track, customImage: vm.customUIImage(for: track.id)).aspectRatio(1, contentMode: .fit)
                                 Text(track.title ?? "—").font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(.primary)
                                 Text(track.displayArtist).font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
                             }

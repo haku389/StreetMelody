@@ -2,12 +2,14 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var vm: AppViewModel
+    @ObservedObject private var music = MusicConnectManager.shared
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 headerRow
                 notificationBanner
+                nowPlayingPanel
                 heroPanel
                 collectionPanel
                 missionPanel
@@ -100,6 +102,63 @@ struct HomeView: View {
 
     // MARK: - Hero panel
 
+    // MARK: - Now playing（今再生中・ライブ・操作可）
+
+    @ViewBuilder private var nowPlayingPanel: some View {
+        if let np = music.active {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Text(np.service.displayName)
+                        .font(.system(size: 9, weight: .black)).foregroundStyle(.white)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Color(hex: "7248E0"), in: Capsule())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(np.track.title)
+                            .font(.system(size: 14, weight: .black)).foregroundStyle(.primary).lineLimit(1)
+                        if let a = np.track.artist, !a.isEmpty {
+                            Text(a).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                        }
+                    }
+                    Spacer()
+                    Text("♪ 再生中").font(.system(size: 9, weight: .black))
+                        .foregroundStyle(np.track.isPlaying ? Color(hex: "1A9E6E") : Color(hex: "B8ACD6"))
+                }
+                HStack(spacing: 22) {
+                    Button { vm.musicPrevious() } label: {
+                        Image(systemName: "backward.fill").font(.system(size: 18, weight: .bold))
+                    }
+                    Button { vm.musicTogglePlayPause() } label: {
+                        Image(systemName: np.track.isPlaying ? "pause.fill" : "play.fill").font(.system(size: 22, weight: .bold))
+                    }
+                    Button { vm.musicNext() } label: {
+                        Image(systemName: "forward.fill").font(.system(size: 18, weight: .bold))
+                    }
+                    Spacer()
+                    Menu {
+                        Button("オフ") { vm.setNowPlayingShareMode("off") }
+                        Button("ベストフレンド") { vm.setNowPlayingShareMode("bestfriends") }
+                        Button("フレンド") { vm.setNowPlayingShareMode("friends") }
+                        Button("全体に公開") { vm.setNowPlayingShareMode("public") }
+                    } label: {
+                        let on = vm.nowPlayingShareMode != "off"
+                        let label = vm.nowPlayingShareMode == "bestfriends" ? "共有: ベスト"
+                                  : vm.nowPlayingShareMode == "friends" ? "共有: フレンド"
+                                  : vm.nowPlayingShareMode == "public" ? "共有: 公開" : "共有する"
+                        Text(label)
+                            .font(.system(size: 11, weight: .black))
+                            .foregroundStyle(on ? Color(hex: "7B6F8A") : .white)
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(on ? Color(hex: "EDE8FF") : Color(hex: "7248E0"),
+                                        in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+                .foregroundStyle(Color(hex: "7248E0"))
+            }
+            .padding(16).mlCard()
+            .padding(.bottom, 14)
+        }
+    }
+
     private var heroPanel: some View {
         Button { vm.navigate(to: .playlist) } label: {
             HStack(spacing: 16) {
@@ -167,21 +226,28 @@ struct HomeView: View {
     // MARK: - Mission panel
 
     private var missionPanel: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(vm.mission?.label ?? "デイリー")ミッション")
-                    .font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
-                ProgressBarView(value: vm.mission?.progress ?? 0)
-                let claimed = (vm.mission?.current ?? 0) >= (vm.mission?.target ?? 5)
-                Text(claimed
-                     ? "🎉 達成済み！メロディコイン +\(vm.mission?.rewardCoins ?? 30) を獲得しました"
-                     : "ピースを\(vm.mission?.target ?? 5)個獲得しよう（達成でコイン +\(vm.mission?.rewardCoins ?? 30)）")
-                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+        Button { vm.navigate(to: .mission) } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text("\(vm.mission?.label ?? "デイリー")ミッション")
+                            .font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                    }
+                    ProgressBarView(value: vm.mission?.progress ?? 0)
+                    let claimed = vm.mission?.claimed ?? false
+                    Text(claimed
+                         ? "🎉 達成済み！メロディコイン +\(vm.mission?.rewardCoins ?? 30) を獲得しました"
+                         : "ピースを\(vm.mission?.target ?? 5)個獲得しよう（達成でコイン +\(vm.mission?.rewardCoins ?? 30)）")
+                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Text("\(vm.mission?.displayCurrent ?? 0) / \(vm.mission?.target ?? 5)")
+                    .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
             }
-            Spacer()
-            Text("\(vm.mission?.current ?? 0) / \(vm.mission?.target ?? 5)")
-                .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
         }
+        .buttonStyle(.plain)
         .padding(16).mlCard().padding(.bottom, 14)
     }
 

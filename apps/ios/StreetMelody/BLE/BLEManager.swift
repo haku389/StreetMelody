@@ -5,172 +5,158 @@ import Combine
 // MARK: - BLE定数
 
 private enum BLEConstants {
-    /// StreetMelody 専用サービスUUID（本番は Apple Developer で取得した UUID を使用）
+    /// StreetMelody 専用サービスUUID
     static let serviceUUID = CBUUID(string: "E7A1B2C3-D4E5-F6A7-B8C9-D0E1F2A3B4C5")
-    /// ユーザーID を乗せるキャラクタリスティックUUID
+    /// ユーザーID を読み取るキャラクタリスティックUUID
     static let userIDCharUUID = CBUUID(string: "A1B2C3D4-E5F6-A7B8-C9D0-E1F2A3B4C5D6")
-    static let scanInterval: TimeInterval = 15      // バックグラウンド: 15秒おきにスキャン
     static let cooldownHours: TimeInterval = 6 * 3600
 }
 
 // MARK: - BLEManager
+//
+// すれちがい（近距離）で実ユーザーの user_id を交換する。
+// iOS は manufacturer data を広告できないため、共有サービスUUIDを広告し、
+// 検出側が GATT 接続して user_id キャラクタリスティックを read する正攻法を用いる。
+// （フォアグラウンド同士で成立。バックグラウンドは iOS の制約あり。）
 
-/// BLE近距離検知の管理クラス
-/// - アプリ起動中: 高精度スキャン
-/// - バックグラウンド: 省電力・低頻度スキャン
 final class BLEManager: NSObject, ObservableObject {
 
-    // MARK: Published state
-
     @Published private(set) var isScanning = false
-    @Published private(set) var nearbyUsers: [NearbyUser] = []
-    @Published private(set) var pendingEncounters: [String] = []  // 未確認のencounterID
+    @Published private(set) var nearbyUsers: [NearbyUser] = []   // すれちがった実ユーザー（新しい順）
 
-    // MARK: Private
+    /// 新しいユーザーとすれちがった時に呼ぶ（VM がフォロー導線などに使う）。
+    var onNewNearby: ((NearbyUser) -> Void)?
 
     private var centralManager: CBCentralManager!
     private var peripheralManager: CBPeripheralManager!
-    private var cancellables = Set<AnyCancellable>()
 
-    /// 同一ユーザーとの交換クールダウン管理
-    /// key: userID, value: 最終交換日時
-    private var lastExchangeMap: [String: Date] = [:]
-
-    /// 1時間の出会い人数カウント
-    private var hourlyEncounterCount = 0
-    private var hourlyCountResetDate = Date()
-
-    private let repository: MelodyRepository
+    private var myUserId: String?
+    private var connecting: [UUID: CBPeripheral] = [:]   // 接続中の peripheral を保持
+    private var lastExchangeMap: [String: Date] = [:]    // user_id -> 最終交換
+    private var hourlyCount = 0
+    private var hourlyReset = Date()
 
     init(repository: MelodyRepository) {
-        self.repository = repository
         super.init()
-        centralManager  = CBCentralManager(delegate: self, queue: .main,
-                                           options: [CBCentralManagerOptionRestoreIdentifierKey: "StreetMelodyCentral"])
-        peripheralManager = CBPeripheralManager(delegate: self, queue: .main,
-                                                options: [CBPeripheralManagerOptionRestoreIdentifierKey: "StreetMelodyPeripheral"])
+        centralManager = CBCentralManager(delegate: self, queue: .main)
+        peripheralManager = CBPeripheralManager(delegate: self, queue: .main)
     }
 
-    // MARK: - Public API
+    // MARK: Public
+
+    /// 自分の user_id を広告し、スキャンを開始（すれちがい開始）。
+    func start(userId: String) {
+        myUserId = userId
+        startAdvertisingIfReady()
+        startScan()
+    }
 
     func startScan() {
-        guard centralManager.state == .poweredOn else { return }
+        guard centralManager.state == .poweredOn, !isScanning else { return }
         isScanning = true
-        centralManager.scanForPeripherals(
-            withServices: [BLEConstants.serviceUUID],
-            options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
-        )
+        centralManager.scanForPeripherals(withServices: [BLEConstants.serviceUUID],
+                                          options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
     }
 
     func stopScan() {
-        centralManager.stopScan()
+        if centralManager.state == .poweredOn { centralManager.stopScan() }
         isScanning = false
     }
 
-    func startAdvertising(userId: String) {
-        guard peripheralManager.state == .poweredOn else { return }
+    // MARK: Advertising（peripheral 側 = 自分の user_id を提供）
+
+    private func startAdvertisingIfReady() {
+        guard peripheralManager.state == .poweredOn, let uid = myUserId else { return }
+        peripheralManager.removeAllServices()
+        let ch = CBMutableCharacteristic(type: BLEConstants.userIDCharUUID,
+                                         properties: [.read],
+                                         value: Data(uid.utf8),   // 固定値＝read で自動応答
+                                         permissions: [.readable])
         let service = CBMutableService(type: BLEConstants.serviceUUID, primary: true)
-        let data = userId.data(using: .utf8) ?? Data()
-        let characteristic = CBMutableCharacteristic(
-            type: BLEConstants.userIDCharUUID,
-            properties: [.read, .broadcast],
-            value: data,
-            permissions: .readable
-        )
-        service.characteristics = [characteristic]
+        service.characteristics = [ch]
         peripheralManager.add(service)
+        if peripheralManager.isAdvertising { peripheralManager.stopAdvertising() }
         peripheralManager.startAdvertising([
             CBAdvertisementDataServiceUUIDsKey: [BLEConstants.serviceUUID],
-            CBAdvertisementDataLocalNameKey: "StreetMelody"
+            CBAdvertisementDataLocalNameKey: "StreetMelody",
         ])
     }
 
-    // MARK: - Encounter logic
+    // MARK: すれちがい記録
 
     private func canExchange(with userId: String) -> Bool {
-        // 同一ユーザー 6時間制限
-        if let last = lastExchangeMap[userId],
-           Date().timeIntervalSince(last) < BLEConstants.cooldownHours {
-            return false
-        }
-        // 1時間 10人制限
-        resetHourlyCountIfNeeded()
-        return hourlyEncounterCount < 10
+        if userId == myUserId { return false }
+        if let last = lastExchangeMap[userId], Date().timeIntervalSince(last) < BLEConstants.cooldownHours { return false }
+        if Date().timeIntervalSince(hourlyReset) > 3600 { hourlyCount = 0; hourlyReset = Date() }
+        return hourlyCount < 10
     }
 
-    private func resetHourlyCountIfNeeded() {
-        if Date().timeIntervalSince(hourlyCountResetDate) > 3600 {
-            hourlyEncounterCount = 0
-            hourlyCountResetDate = Date()
-        }
-    }
-
-    private func handleDiscoveredUser(_ userId: String, rssi: Int) {
+    private func record(userId: String, rssi: Int) {
         guard canExchange(with: userId) else { return }
-
         lastExchangeMap[userId] = Date()
-        hourlyEncounterCount += 1
-
-        Task {
-            do {
-                let encounterId = try await repository.createEncounter(with: userId)
-                await MainActor.run {
-                    pendingEncounters.append(encounterId)
-                }
-            } catch {
-                print("[BLE] createEncounter failed: \(error)")
-            }
-        }
+        hourlyCount += 1
+        let user = NearbyUser(id: userId, userId: userId, rssi: rssi, detectedAt: Date())
+        nearbyUsers.removeAll { $0.userId == userId }
+        nearbyUsers.insert(user, at: 0)
+        onNewNearby?(user)
     }
 }
 
-// MARK: - CBCentralManagerDelegate
+// MARK: - CBCentralManagerDelegate（検出 → 接続 → read）
 
 extension BLEManager: CBCentralManagerDelegate {
-
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        switch central.state {
-        case .poweredOn:
-            startScan()
-        case .poweredOff, .resetting:
-            stopScan()
-        default:
-            break
-        }
+        if central.state == .poweredOn { startScan() } else { isScanning = false }
     }
 
-    func centralManager(_ central: CBCentralManager,
-                        didDiscover peripheral: CBPeripheral,
-                        advertisementData: [String: Any],
-                        rssi RSSI: NSNumber) {
-        // アドバタイズデータからユーザーIDを読み取る
-        // （実装では peripheral.readValue で取得する）
-        let tempUserId = peripheral.identifier.uuidString
-        handleDiscoveredUser(tempUserId, rssi: RSSI.intValue)
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
+                        advertisementData: [String: Any], rssi RSSI: NSNumber) {
+        // クールダウン済みの既知ユーザーは何度も繋がない（rssiだけ更新）
+        connecting[peripheral.identifier] = peripheral
+        peripheral.delegate = self
+        central.connect(peripheral, options: nil)
     }
 
-    func centralManager(_ central: CBCentralManager,
-                        willRestoreState dict: [String: Any]) {
-        // バックグラウンド復帰時の状態復元
-        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
-            for p in peripherals {
-                let userId = p.identifier.uuidString
-                handleDiscoveredUser(userId, rssi: -70)
-            }
-        }
+    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        peripheral.discoverServices([BLEConstants.serviceUUID])
+    }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        connecting[peripheral.identifier] = nil
+    }
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        connecting[peripheral.identifier] = nil
     }
 }
 
-// MARK: - CBPeripheralManagerDelegate
+// MARK: - CBPeripheralDelegate（user_id を read）
+
+extension BLEManager: CBPeripheralDelegate {
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        guard let s = peripheral.services?.first(where: { $0.uuid == BLEConstants.serviceUUID }) else {
+            centralManager.cancelPeripheralConnection(peripheral); return
+        }
+        peripheral.discoverCharacteristics([BLEConstants.userIDCharUUID], for: s)
+    }
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        guard let c = service.characteristics?.first(where: { $0.uuid == BLEConstants.userIDCharUUID }) else {
+            centralManager.cancelPeripheralConnection(peripheral); return
+        }
+        peripheral.readValue(for: c)
+    }
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        if let data = characteristic.value, let uid = String(data: data, encoding: .utf8), uid.count == 36 {
+            record(userId: uid, rssi: -60)
+        }
+        centralManager.cancelPeripheralConnection(peripheral)
+        connecting[peripheral.identifier] = nil
+    }
+}
+
+// MARK: - CBPeripheralManagerDelegate（自分を広告）
 
 extension BLEManager: CBPeripheralManagerDelegate {
-
     func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
-        if peripheral.state == .poweredOn {
-            // アドバタイズは AppViewModel から userId 確定後に呼ぶ
-        }
+        if peripheral.state == .poweredOn { startAdvertisingIfReady() }
     }
-
-    func peripheralManager(_ peripheral: CBPeripheralManager,
-                           willRestoreState dict: [String: Any]) {}
 }

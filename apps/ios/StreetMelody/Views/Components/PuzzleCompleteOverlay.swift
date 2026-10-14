@@ -29,9 +29,9 @@ struct PuzzleCompleteOverlay: View {
     private func card(track: Track) -> some View {
         VStack(spacing: 0) {
             // 完成したパズル全体（6×4 サムネイル）
-            PuzzlePiecesView(thumbnailURL: track.thumbnailURL,
-                             ownedPieces: track.ownedPieces,
+            PuzzlePiecesView(ownedPieces: track.ownedPieces,
                              color: track.color,
+                             seed: track.id,
                              cornerRadius: 16,
                              revealAll: true)
                 .padding(.bottom, 18)

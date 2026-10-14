@@ -955,3 +955,125 @@ Supabase Swift SDK のネットワーク呼び出しがシミュレータで常�
 - `AppViewModel`/`AccountLinkView`: Apple/Google/Spotify を `link:` 対応（連携=昇格 / ログイン=切替）。
 - 検証: REST の link authorize 取得を curl で確認 → **-1005 ではなく** `404 manual_linking_disabled`（API に到達＝REST 経路はシミュレータで動く）。
 - ⚠️ **昇格(link) の前提（ユーザー作業）**: 上記エラーのとおり、Supabase で **「Manual linking」を有効化**する必要がある（既定で無効）。有効化後に link の Web 認証が開く（→ プロバイダログイン→ 昇格）。sign-in（ログイン）側は manual linking 不要で動作。
+
+### 実機での OAuth（Google）連携フロー E2E 検証 ✅（2026-06-25）
+
+これまでシミュレータ止まりだった OAuth 連携を、**実機（マリオマリオ / iPhone 16 Pro Max, iOS 26.5）で初めて E2E 成功**。直前コミット群（HTTP/3 緩和・`-1005` リトライ・stale session 自己修復・OAuth 経路の HTTP ステータス/ボディ可視化・ボタン別ローディング）が実ネットワークで通ることを確認。
+
+- **実機ビルド到達までの環境整備**:
+  - ディスク逼迫（Data ボリューム 99–100%）で DerivedData ビルド不能 → 空き確保で復旧。
+  - Mac がバッテリー駆動 14%・残 15 分（USB-C 接続の iPhone へ給電して消耗加速）→ **AC 電源接続**で安定化。ネットワーク不安定の一因でもあった。
+  - `xcodebuild` が `No Accounts` → 原因は **Xcode に Apple ID 未サインイン**（証明書は過去分が keychain に残存）。Xcode → Settings → Accounts に `y.to_fumm0329@icloud.com` を追加で解消。
+  - 署名: Automatic、**Team = とうや やまさき (Personal Team)**、`com.streetmelody.app`、Xcode Managed Profile。**無料プロビジョニングのため有効期限 7 日**（7 日ごと再インストール必要）。
+  - 初回 Run でキーチェーン署名鍵アクセス許可（SecurityAgent）→ 「信頼されていないデベロッパ」をデバイスで信頼 → 再 Run で起動。
+- **検証結果**: 実機でアプリ起動（デバッガ接続・クラッシュなし）→ 「Google で続ける」→ 実 Google ログイン → アプリ復帰まで成功（ユーザー確認）。コンソールに OAuth 関連エラースタックなし。
+- **客観確認の制約**: Supabase 本番 `auth.identities` の参照は PII 保護でツール側がブロック（集計クエリも不可）。identity 紐付けの DB 直接確認は、参照許可付与かアプリ内「連携済み」表示で代替する。
+
+### 次フェーズ計画：3 音楽サービス連携（ログインとは別）＋再生中曲の取得＋共有
+
+**目的**: 認証（ログイン）とは独立に、ユーザーが Spotify / Apple Music / （第 3 サービス）と接続し、「今聞いている曲（now playing）」を取得して他ユーザーと共有できるようにする。G-3 は模擬実装のため、ここで実 API 連携へ拡張する。
+
+- 対象サービス候補: **Spotify**（Web API: `GET /v1/me/player/currently-playing`）、**Apple Music**（MusicKit / `SystemMusicPlayer` で再生中取得）、第 3 = 要確定（YouTube Music は公式 now-playing API なし、LINE MUSIC 等も要調査 → 候補確定が最初のタスク）。
+- 認証との分離: ログインは既存の Supabase OAuth を維持。音楽連携は**サービス別アクセストークンを別管理**（Spotify は scope `user-read-currently-playing`/`user-read-playback-state` で別 OAuth、Apple Music は MusicKit のユーザートークン）。
+- データ/共有: now-playing を Supabase の公開テーブル（例 `now_playing(user_id, service, track, artist, updated_at)` ＋ RLS）に upsert → フレンドが購読/取得して共有表示。
+- 未確定事項（要相談）: ①第 3 サービスの確定、②取得契機（手動更新 / バックグラウンド・ポーリング / すれちがい連動）、③共有範囲（フレンドのみ / 公開）。
+
+### 音楽サービス連携 実装（M-1〜M-5・ビルド緑）
+
+ユーザー判断: **取得は「StreetMelody を前面で開いている時のみ」**（＝サーバーポーリング不要・トークンのサーバー保管なし・全クライアント処理）。共有は**本人が都度選択**。3 サービスは Spotify / Apple Music を実 API、YouTube Music は手動共有。
+
+- **M-1 DB**（`add_now_playing` ＋ `now_playing_add_display_name`）: `now_playing(user_id PK, service, track_title, artist, artwork_url, started_at, updated_at, visibility, display_name)` ＋ RLS（本人=全操作 / `visibility='public'` は認証ユーザーが read）。共有フィードで `profiles` を跨いで読まずに済むよう **display_name を非正規化**（共有者名）。security advisor は既存同様の `auth_allow_anonymous_sign_ins` WARN のみ（匿名認証前提のため許容）。
+- **M-2 iOS基盤**: `Models.swift` に `MusicService`/`NowPlaying`。`SupabaseClient` に `upsertNowPlaying`(on_conflict=user_id, merge) / `clearNowPlaying` / `fetchSharedNowPlaying`(visibility=public, updated_at desc, 自分除外) ＋ ISO8601 日付パース。
+- **M-3 Spotify**（`Services/MusicNowPlaying.swift`・`MusicConnectManager`）: **ログインとは別の専用 OAuth**（Authorization Code + PKCE を accounts.spotify.com 直結、client_id `bbdf2c9d…`、redirect `com.streetmelody.app://spotify-callback`、scope `user-read-currently-playing user-read-playback-state`）。`ASWebAuthenticationSession`（`WebAuthPresenter` 再利用）→ code 交換 → **トークンは Keychain 保管**・期限切れは refresh_token で自動更新。`me/player/currently-playing`（204=非再生は nil）。HTTP/3 は `assumesHTTP3Capable=false` で緩和。
+- **M-4 Apple Music**: `MPMusicPlayerController.systemMusicPlayer.nowPlayingItem` を読む（`NSAppleMusicUsageDescription` ＋ `MPMediaLibrary` 許可・**有料プログラム不要**／フル MusicKit は不使用）。画像URLは取れないため artwork は nil。
+- **M-5 ViewModel/UI**: `AppViewModel` に `connectMusicService`/`disconnectMusicService`/`refreshNowPlaying`（再生中を Spotify→Apple Music の順で採用）/`setNowPlayingShared`/`shareManualNowPlaying`/`loadSharedFeed`、`myNowPlaying`/`sharedFeed`/`nowPlayingBusy` を Published。`MyPageView` に連携トグル実機能化・「今聴いている曲」カード（更新／**この曲を共有する⇄共有をやめる**）・手動共有シート・「みんなの今聴いてる曲」公開フィードを追加。
+- **共有範囲（初版）**: `friendships` の `friend_user_id` が nullable で双方向 UUID 連結が未確立のため、初版は **private/public（都度選択）**。「フレンドのみ」は friendships の双方向化後に対応予定。
+- 検証: シミュレータ `BUILD SUCCEEDED`（xcodegen 再生成込み）。
+- ⚠️ **ユーザー作業**: Spotify Developer Dashboard の **Redirect URIs に `com.streetmelody.app://spotify-callback` を追加**（未追加だと連携が失敗）。
+- 残（M-6）: **実機で Spotify/Apple Music の now-playing 取得・共有・フィード表示を検証**（前面取得のため実機で実再生して確認）。
+
+### Spotify を Web API → App Remote SDK へ切替（無料アカウント対応）＋ now-playing ライブ化（M-6/M-7・実機検証済み ✅）
+
+**Spotify Web API は使えないと判明**: 実機で `currently-playing` が連鎖的に失敗。切り分けの結果、最終的に **HTTP 403「Active premium subscription required for the owner of the app」** ＝ **Web API の `me/player/*` は開発者アプリのオーナーが Spotify Premium でないと使えない**（無料アカウント不可）。途中の「user may not be registered」は開発モードの User Management 由来だが、本質は owner Premium 要件。→ **Spotify iOS SDK（App Remote）に切替**（端末の Spotify アプリへ直接つなぐため無料アカウントでも再生状態を読める）。
+
+- **SDK 導入**: `spotify/ios-sdk` を **SPM** で追加（`packages` に `https://github.com/spotify/ios-sdk` from 5.0.1、product `SpotifyiOS`）。device/simulator 両対応の binary xcframework。`Info.plist` に `LSApplicationQueriesSchemes: [spotify]`。
+- **`SpotifyAppRemoteController`**（`Services/SpotifyAppRemote.swift`）: `authorizeAndPlayURI("")` で Spotify アプリを起動・認可（app-switch）→ 戻りURL（`com.streetmelody.app://spotify-callback`）を App の `onOpenURL` → `authorizationParameters(from:)` でトークン取得（Keychain 保管）→ `connect()` → `appRemoteDidEstablishConnection` で `playerAPI` を **subscribe**。以後 `playerStateDidChange` でライブに曲・再生/一時停止が届く。`resume/pause/skipToNext/skipToPrevious` で操作。
+  - **教訓**: `connect()` 単体は session 未確立で `com.spotify.app-remote#-1000`。初回は必ず `authorizeAndPlayURI` を通す。`prefersEphemeral` 等の Web OAuth は不要になり、PKCE Web 認可コードは撤去。
+- **ライブ now-playing（M-7）**: `MusicConnectManager` を `ObservableObject` 化し `@Published active: ActivePlayback?`（**再生中のみ**・停止/古い残りは除外）。
+  - Apple Music: `MPMusicPlayerController.systemMusicPlayer` を通知監視＋**2秒ポーリング併用**（通知だけだと初回状態を取りこぼすため。これが実機で表示されなかった主因→ポーリングで解決）。`.playing`/能動セッション中の`.paused`のみ採用（起動直後の古い一時停止アイテムを弾く `appleWasPlaying` ガード）。
+  - Spotify: App Remote の購読でライブ反映。両方再生中なら Spotify 優先。
+  - **ホームにミニプレイヤー**を新設（`HomeView.nowPlayingPanel`、`@ObservedObject music = MusicConnectManager.shared` を直接購読）: サービス名・曲名・アーティスト＋**再生/一時停止・前後ボタン**＋**「共有する」トグル**。マイページは連携トグルと「みんなの今聴いてる曲」フィードのみに整理。
+  - 共有はトグル化（`nowPlayingShared` を永続化）: ON の間、曲が変わるたび `now_playing` に自動 upsert、停止/OFF で削除。
+- **実機検証済み ✅**: Apple Music・Spotify とも、再生中のみ表示／曲変更で自動反映／再生・一時停止・前後操作／共有 を確認。無料 Spotify アカウントで App Remote 接続成功。
+- ⚠️ **ユーザー作業（再掲）**: Spotify Dashboard の Redirect URIs に `com.streetmelody.app://spotify-callback` 追加済み。署名は個人 Team（無料プロビジョニング＝7日有効）。
+
+### フレンド共有（フレンドコードで相互登録 → friends 可視性）（M-8）
+
+すれちがいで増える friends は seed の擬似 id で実ユーザー UUID が無い（実フレンドグラフが不在）。そこで **フレンドコード方式**で実 UUID リンクを作り、now-playing の **friends 可視性**を実装。
+
+- **DB**（`now_playing_friends_visibility`）: `now_playing.visibility` の CHECK に `'friends'` を追加。RLS `now_playing_select_friends` を追加＝`visibility='friends'` の行は、**閲覧者が friend_user_id として登録した相手**の行のみ読める（`exists(select 1 from friendships f where f.user_id=auth.uid() and f.friend_user_id=now_playing.user_id)`）。friendships は本人行のみ select 可なのでサブクエリは安全。
+- **`SupabaseClient`**: `addFriendByCode(friendUserId:nickname:)`（friendships に user_id=自分・friend_user_id=相手 を upsert。36文字/自分除外を検証）、`myFriendCode()`（=自分の user_id）。`fetchSharedNowPlaying` は `visibility=eq.public` 固定をやめ、**RLS に委ねて public＋自分が登録したフレンドの friends 行**を返す（自分は除外）。
+- **`AppViewModel`**: 共有を `nowPlayingShared:Bool` → **`nowPlayingShareMode:String`（"off"|"friends"|"public"・永続化）**へ。`setNowPlayingShareMode` で即時反映、`syncSharedNowPlaying` は mode を visibility に使用。`friendCode` を `refreshAccountState` で取得。`addFriendByCode(code:nickname:)`。
+- **UI**: ホームのミニプレイヤーの共有ボタンを **3択メニュー（オフ/フレンド/公開）** に。マイページに **フレンドコード**セクション（表示・コピー・「コードでフレンド追加」シート）。共有フィード行に `friends` の **「フレンド」バッジ**。
+- 検証: シミュレータ／実機 `BUILD SUCCEEDED`・インストール済み。**E2E（相手の friends 曲が見える）の確認には2アカウント必要**（コード交換 → 双方が相手を登録）。単体ではコード表示・追加・共有モード切替まで確認可。
+- 補足: 友だち関係は一方向（登録した相手を見られる）。相互に見るには双方が相手コードを登録。フレンドコード＝user_id（36文字）。
+
+### フォロー型ソーシャル化（相互フォロー＝フレンド／ベストフレンド／公開範囲4段階）（M-9）
+
+SNS のフォロー型へ刷新。**相互フォロー＝フレンド**、フレンドの中から**ベストフレンド（親しい友達）**を選択、共有範囲は **オフ / ベストフレンド / フレンド / 全体公開** の4段階。
+
+- **DB**（`follows_and_bestfriends`）: `follows(follower_id, followee_id, nickname, is_best, created_at)` PK(follower,followee)・自己参照禁止 check。RLS: 自分の行は insert/update/delete 可、`follows_select_involved` で**自分が関与する行（follow した/された）**を select 可（相互判定・被ベスト判定に必要）。`now_playing.visibility` に `'bestfriends'` 追加。friends ポリシーを **follows ベースの相互フォロー**へ置換、`now_playing_select_bestfriends`（所有者が閲覧者を is_best 指定）を追加。
+- **`SupabaseClient`**: `SocialUser{userId,nickname,following,followedBy,isBest,isFriend}`、`fetchSocialGraph()`（自分関与の follows を相手ごとに集約）、`followUser(code:nickname:)`／`unfollowUser`／`setBestFriend(_:isBest:)`。`fetchSharedNowPlaying` は RLS に委ね public＋相互フレンドの friends＋被ベストの bestfriends を返す。
+- **`AppViewModel`**: `social:[SocialUser]`、`loadSocialGraph`／`followByCode`／`unfollow`／`toggleBestFriend`、`nowPlayingShareMode` を4値対応。起動・マイページ表示で社交グラフ読込。
+- **UI**: ホームの共有メニューを **4択（オフ/ベスト/フレンド/公開）**。マイページに **フォロー/フレンド**セクション（自分のコード＋「フォロー追加」、フォロー一覧に フレンド/フォロー中/フォロワー/★ベスト バッジ、フレンドのみ★トグル、解除/フォロー返し）。
+- **フォロー導線**: ユーザー検索基盤が無いため**コード（user_id）でフォロー**。相互フォローでフレンド成立 → フレンドのみベスト指定可。
+- 検証: シミュレータ／実機 `BUILD SUCCEEDED`・インストール済み。**E2E は2アカウント必要**（相互フォロー→ベスト指定→各可視性で相手フィードに出るか）。
+
+### 次フェーズ設計：メロディコード・ソーシャル（プロフィール基盤＋メロディミックスでベスト成立）
+
+方針転換：ベストフレンドは**コード手入力ではなく「すれちがいで出会った実ユーザー」へのフォロー＋儀式**で成立させる。各ユーザーに**約4秒のメロディ**を付与（初期は自動、将来は自作）し、**メロディミックス**（2人のメロディを混ぜて再生）でベスト成立、遠隔は**メロディコード**交換。実ユーザー基盤（ログイン後の handle/誕生日/性別/bio/お気に入り曲のプロフィール設定）が前提。**まず設計を固める**段階。
+
+- 設計詳細は **[melody-social-design.md](melody-social-design.md)** に集約（関係モデル／プロフィール／メロディ表現／**メロディミックスの音楽設計＝ペンタトニック固定で常に協和**／ベスト成立フロー／データモデル／段階計画）。
+- ⚠️ 重要技術前提：**iOS 公開APIでは iPhone 同士の NFC P2P 通信は不可**。近接ハンドシェイクは **BLEすれちがい（既存）＋QR/MultipeerConnectivity** を推奨（NFCはタグ設置型イベントの将来オプション）。→ 要意思決定。
+
+### P1 実装：プロフィール基盤＋メロディ（生成・音色・試聴）
+
+設計確定（近接トリガー＝**QRで確定**／NFC・HCEは不可：Core NFC 読取自体が有料Program必須・HCEは特別審査制）。P1 を実装。
+
+- **P1-1 DB**（`profiles_social_fields` / `check_handle_available_rpc`）: `profiles` に handle(unique, lower部分索引)・bio・favorite_artist_ids・favorite_track_ids・birthday・gender・melody(jsonb)・melody_seed・profile_visibility(jsonb) を追加。handle 空き確認 RPC `check_handle_available`（SECURITY DEFINER）。
+- **P1-2 メロディ**（`Services/Melody.swift`）: `Melody`（音符列＋meta）／**user_id シードの決定的ペンタトニック生成**（Cメジャーペンタ・110BPM・2小節・主音終止・跳躍制限／**初期値は変更前提**）。**`AVAudioEngine`＋`AVAudioSourceNode` の自前加算合成**で試聴（アセット不要）。**5音色（ピアノ/ベル/マリンバ/オルガン/プラック）**を倍音＋エンベロープで実装し user_id から決定的に割り当て＝「その人の音」。`playMix` は2人の音色が同じなら片方をずらし、相手は+1oct で住み分け。ユーザー確認＝**音の動き/リズム良好・音色分けOK**。
+- **P1-3 プロフィールUI**（`Views/Screens/ProfileEditView.swift`）: handle（形式検証＋RPCで空き確認・✓/✗表示）・表示名・自己紹介・誕生日（任意・公開範囲付き）・性別（公開範囲付き）・好きなアーティスト/曲（複数選択）・メロディ試聴。`SupabaseClient` に `fetchMyProfile`/`updateMyProfile`(handle重複=409→文言)/`checkHandleAvailable`。`AppViewModel` に `profile`/`loadProfile`/`saveProfile`/`needsProfileSetup`。**実アカウントで handle 未設定なら起動時にオンボーディングを自動提示**（`ContentView` のsheet）。MyPage ヘッダーに handle 表示＋編集ボタン。
+- 必須公開＝表示名・自己紹介・好きなアーティスト・好きな曲。誕生日・性別は項目ごとに公開範囲（公開/フォロワー/フレンド/ベスト/非公開）を設定（他者閲覧フィルタの `get_profile` RPC は P3/P4 で実装予定）。
+- 検証: シミュレータ／実機 `BUILD SUCCEEDED`・インストール済み。
+- 次：**P2 メロディミックス（対面でのミックス共演）／P3 すれちがい実ユーザー連動／P4 ベスト成立・メロディコード**。
+
+### P1 追補：プロフィールUI改善・コレクション再生・全カタログ検索・外部アプリ再生・MV
+
+- **プロフィールUI 独自化**（`ProfileEditView` を Form → 紫カード基調に作り替え）。誕生日カレンダー日本語化（`ja_JP`）・**誕生日必須**化・テスト用✕クローズ。子画面遷移で入力が消えるバグ修正（`didLoad` ガード）。サインイン/連携直後にオンボーディング自動提示（`presentOnboardingIfNeeded`）。
+- **お気に入りを Apple Music 全カタログ検索**：MusicKit カタログ検索は有料Program必須のため、**iTunes Search API**（無料・認証不要）で全曲/全アーティスト検索（アートワーク付き）。`MusicLibrary.swift` の `ITunesSearch`。ローカルライブラリ（MPMediaQuery）限定をやめた（自分のプレイリストしか出ない問題を解消）。
+- **コレクションから試聴**：`CollectionView` の一覧行・完成グリッド・アーティストグリッドに ▶ 再生ボタン（タップ=詳細／▶=試聴の住み分けは onTapGesture＋Button）。**試聴の無音バグ修正**＝`PreviewPlayerView` で `AVAudioSession(.playback)` 有効化（マナースイッチでも鳴る）。**解放済みは試聴無制限**（未解放のみ1日3回）。
+- **PuzzleView に「この曲を聴く・観る」**：**Apple Music / Spotify をディープリンクで開いて再生**（無料アカウントの現実解＝外部アプリでバックグラウンド再生。Apple Music は iTunes Search で曲URL解決、Spotify は検索URL）。`ExternalMusic`。完成時のみ **「MVを見る」**＝映像つきフル YouTube プレイヤー（`YouTubeMVView`/`YouTubeVideoPlayer`、`vm.mvTrackId`）。全ピース獲得でパズルは自動的にフルサムネイル表示。
+- ⚠️ iOS NFC: iPhone間P2Pは不可（HCEは有料＋特別審査・Core NFC読取も有料Program必須）→ 近接トリガーは **QR** で確定（設計書 §6.3）。
+
+### P1 追補2：出会いフロー改善・マスク基準・ミッション、＋P2 メロディミックス
+
+- **試聴の無音を修正**：YouTube埋め込み（実機で不安定）→ **AVPlayer＋iTunes公式30秒プレビュー音源**（`ITunesSearch.previewURL`）。確実に鳴る。完成MVは引き続き YouTube。
+- **マスク基準**：曲名は「答えて解放(isUnlocked)」までマスク、**アーティスト名は常に表示**。サムネのモザイクは「フルピース集める(isComplete)まで」。`displayTitle/displayArtist`・MelodyView の blur 条件を修正。
+- **出会いはすれ違った順のみ・戻れない**：「前/次の出会い」ナビと「あとで選ぶ」を撤去、出会いリストは現在の人以外ロック、表示時に `ensureActiveEncounter()` で現在の出会いへ。ピース選択後は **次の出会いへ自動遷移**、全消化で **本日のまとめ**（時刻 `🕒HH:mm`・相手・場所・曲・「この時 X/24」）。`TodayCollect` に取得時点ピース数(`ownedCountAtCollection`)＋時刻(`collectedAt`)を記録（同曲を別人で選んでも各時点の数を表示）。
+- **デイリーミッション**：`9/5` 等の超過を **target上限表示**（`displayCurrent`／progress を min 1.0）。**ホームのミッションをタップで `MissionView`（新規）へ遷移**。
+- **P2 メロディミックス**（`MelodyMixView`／VM `playPartnerMelody`・`playMelodyMix`）：自分＋相手（seed＝将来のメロディコード）のメロディを **ペンタ固定・音域/音色住み分けで重ねて再生**（`MelodyPlayer.playMix`）。対面接続(QR/Multipeer)前のため相手シード入力で試せる。マイページ「フォロー/フレンド」から導線。P3/P4 で実ユーザー接続＋ベスト成立に接続予定。
+- **P3 すれちがい（BLE 実ユーザー交換→フォロー）**（`BLEManager` 全面改修）：iOS は manufacturer data 広告不可のため、共有サービスUUIDを広告し検出側が **GATT 接続して user_id キャラクタリスティックを read** する方式。`onNewNearby` で VM `nearbyUsers` に積み、マイページ「フォロー/フレンド」の **「すれちがった人」** からフォロー（相互でフレンド）。6時間/同一・10人/時の制限維持。要2台・前面。
+
+### 著作権リスク低減の仕様転換（音楽SNS中心化）
+
+- **中心体験を「今聴いてる曲の共有→出会い→ピース収集」へ**。パズルはコレクション要素に再定義。
+- **公開表示を独自生成カードに統一**：`MelodyCardArtwork`（id から決定的に生成＝ジャンル色＋雰囲気色＋波形＋音符＋6×4パズル模様＋枠）。`ArtBlockView`/`PuzzlePiecesView`/`PieceSelectView` の土台を公式MVサムネ→生成カードに置換（`thumbnailURL`/`CachedThumbnail`/同梱preview.png は公開表示から撤去）。公開＝フィード/ランキング/フレンド/近距離/共有/他人のパズル候補は常に生成カード。
+- **カスタム画像は本人のみ**：`customImages[trackId]`（SaveStateにbase64永続）。`PuzzleView` に PhotosPicker＋**権利・本人限定の注意文**。表示は本人の `PuzzleView`/`CollectionView` のみ（`customImage:` 明示渡し）、公開は常に nil＝生成カード。Google画像検索等の外部誘導は未実装。
+- **曲名当てヒント Lv0–3**（`MysteryView` 全面改修）：Lv0=アーティスト表示＋曲名？？？＋30秒試聴（広告なし）／Lv1=ジャンル・年代・雰囲気（`genreHint`/`eraHint`/`moodHint`、広告可）／Lv2=曲名の文字が約4割開く（`maskedTitle(hintLevel:)`、広告可）／Lv3=Apple Music・iTunes確認＋曲名入力＋あとで聴く（広告なし）。**4択・「YouTube/広告で答え即解放」は撤去**（`applyHint(.answer)` は no-op）。
+- **試聴・外部導線**：30秒試聴は iTunes `previewUrl`＋AVPlayer（既存）。`PreviewPlayerView`・`MysteryView`・`PuzzleView` に **Apple Music / iTunesで見る**（`ExternalMusic.openITunes` 追加）導線。**完成MV（YouTube公式埋め込み）は残しつつ**外部導線を併記（ユーザー選択）。旧 `YouTubeAudioPlayer`（音声のみ）は撤去。
+
+### マイページ刷新・つながり一覧・アイコン変更（追補）
+
+- **iTunes導線を全撤去** → 外部は **Apple Music＋Spotify** のみ（`ExternalMusic.openITunes` 削除）。カスタム画像の注意文も削除（ユーザー指示。本人画面のみ表示は維持）。
+- **マイページ刷新**（画像準拠）：プロフィールヘッダーカードに **アイコン（タップで PhotosPicker 変更／`avatarImageData` をSaveStateに永続）＋名前＋@handle＋Lv・コイン＋EXPバー** と、**フレンド/フォロー中/フォロワーの件数バー（タップで一覧へ）＋「フレンドを追加」**を集約。`マイメロディ試聴`／`メロディミックス` は横並びボタンに。旧「フォロー/フレンド」大カード・フレンド履歴カードは撤去。
+- **つながり一覧 `SocialListView`（新規・`Screen.socialList(SocialTab)`）**：件数タップ/追加ボタンから遷移。セグメント **フレンド/フォロー中/フォロワー**＋各リスト（フォロー解除/フォロー/★ベスト切替）、**フレンド内にベストフレンドを上部集約**、自分のコード・コード追加・すれちがった人もここへ集約。

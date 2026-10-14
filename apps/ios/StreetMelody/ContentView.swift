@@ -35,6 +35,13 @@ struct ContentView: View {
                     .transition(.opacity)
             }
 
+            if let mvId = vm.mvTrackId {
+                YouTubeMVView(trackId: mvId)
+                    .environmentObject(vm)
+                    .zIndex(16)
+                    .transition(.opacity)
+            }
+
             if let toast = vm.toast {
                 VStack {
                     Spacer()
@@ -50,6 +57,9 @@ struct ContentView: View {
                 }
                 .animation(.spring(), value: toast)
             }
+        }
+        .sheet(isPresented: $vm.showProfileEdit) {
+            ProfileEditView().environmentObject(vm)
         }
     }
 
@@ -81,6 +91,9 @@ struct ContentView: View {
         case .shop:                       ShopView()
         case .notifySettings:             NotifySettingsView()
         case .bgSettings:                 BgSettingsView()
+        case .mission:                    MissionView()
+        case .melodyMix:                  MelodyMixView()
+        case .socialList(let tab):        SocialListView(initialTab: tab)
         }
     }
 }

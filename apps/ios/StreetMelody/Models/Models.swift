@@ -38,11 +38,45 @@ struct Track: Codable, Identifiable {
     var ownedPieces: [Int]
     var youtubeVideoId: String?
     var chorusStart: Int? = nil   // サビ位置（秒）。30秒試聴の開始位置
-    var thumbnailUrl: String? = nil   // API(DB)由来のサムネイルURL（公式MV等から生成済み）。seed では nil
+    var thumbnailUrl: String? = nil   // 旧API由来サムネ。著作権方針により公開表示では使用しない（独自生成カードに移行）
+    var genre: String? = nil      // ジャンル（Lv1ヒント）。未設定なら id から決定的に導出
+    var era: String? = nil        // 年代（Lv1ヒント）
+    var mood: String? = nil       // 雰囲気（Lv1ヒント）
 
-    var displayTitle: String { title ?? maskedLabel ?? "未解放メロディ" }
-    var displayArtist: String { artistName ?? "???" }
+    // 曲名は「曲名を答えて解放（isUnlocked）」するまでマスク。Lv2で一部の文字が開く。
+    // アーティスト名は初期状態でも常に表示する。
+    var displayTitle: String { isUnlocked ? (title ?? "メロディ") : maskedTitle(hintLevel: hintLevel) }
+    var displayArtist: String { artistName ?? "—" }
     var isComplete: Bool { ownedPieces.count >= pieceCount }
+
+    // MARK: 独自カード/段階ヒント用（公式画像を使わずアプリ側で決定的に生成）
+
+    static func mlHash(_ s: String) -> UInt64 {
+        var h: UInt64 = 1469598103934665603
+        for b in s.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
+        return h
+    }
+    private static func pick(_ s: String, _ a: [String]) -> String { a[Int(mlHash(s) % UInt64(a.count))] }
+
+    var genreHint: String { genre ?? Track.pick(id + "g", ["J-POP","ロック","ヒップホップ","R&B/ソウル","ダンス/EDM","バラード","アニソン/ボカロ","シティポップ"]) }
+    var eraHint:   String { era   ?? Track.pick(id + "e", ["1990年代","2000年代","2010年代","2020年代"]) }
+    var moodHint:  String { mood  ?? Track.pick(id + "m", ["切ない","夜っぽい","疾走感","エモい","爽やか","アガる","しっとり","ノスタルジック"]) }
+
+    /// 曲名のマスク表示。Lv2(hintLevel>=2)で約4割の文字が開く（決定的）。
+    func maskedTitle(hintLevel: Int) -> String {
+        if isUnlocked { return title ?? "メロディ" }
+        guard let t = title, !t.isEmpty else { return "？？？？？？" }
+        let reveal: Double = hintLevel >= 2 ? 0.4 : 0
+        var h = Track.mlHash(id + "title")
+        var out = ""
+        for ch in t {
+            if ch == " " || ch == "　" { out.append(ch); continue }
+            h = h &* 6364136223846793005 &+ 1442695040888963407
+            let r = Double((h >> 33) % 1000) / 1000.0
+            out.append(r < reveal ? ch : "？")
+        }
+        return out
+    }
 
     /// 実在する YouTube 動画を持つか（30秒試聴・YouTube確認の可否判定に使う）。
     /// 架空曲（`youtubeVideoId == nil` または `official-*`）は false。
@@ -118,8 +152,11 @@ struct Mission: Codable {
 
     var progress: Double {
         guard target > 0 else { return 0 }
-        return Double(current) / Double(target)
+        return min(1.0, Double(current) / Double(target))   // 超過しても 1.0 で止める
     }
+    /// 表示用の達成数（target を超えない）。
+    var displayCurrent: Int { min(current, target) }
+    var claimed: Bool { current >= target }
 }
 
 // MARK: - Collection Summary
@@ -141,6 +178,44 @@ struct Friend: Identifiable, Codable {
     let locationLabel: String
     var exchangeCount: Int
     let addedAt: Date
+}
+
+// MARK: - Now Playing（今聴いている曲・共有）
+
+/// 音楽サービス種別。rawValue は now_playing.service 列・linkedServices のキーと一致させる。
+enum MusicService: String, Codable, CaseIterable, Sendable {
+    case spotify
+    case appleMusic = "appleMusic"
+    case youtubeMusic = "youtubeMusic"
+    case manual
+
+    var displayName: String {
+        switch self {
+        case .spotify: return "Spotify"
+        case .appleMusic: return "Apple Music"
+        case .youtubeMusic: return "YouTube Music"
+        case .manual: return "手動"
+        }
+    }
+    /// now-playing を自動取得できるか（YouTube Music は公式APIが無く手動のみ）。
+    var supportsNowPlaying: Bool { self == .spotify || self == .appleMusic }
+}
+
+/// 「今聴いている曲」。自分の最新1件 or フレンド/公開フィードの1件を表す。
+struct NowPlaying: Identifiable, Codable, Sendable, Equatable {
+    let userId: String
+    var id: String { userId }
+    var displayName: String?          // 共有者の表示名（フィード用に非正規化）
+    var service: String               // MusicService.rawValue
+    var trackTitle: String
+    var artist: String?
+    var artworkUrl: String?
+    var startedAt: Date?
+    var updatedAt: Date
+    var visibility: String            // "private" | "public"
+
+    var serviceKind: MusicService { MusicService(rawValue: service) ?? .manual }
+    var isShared: Bool { visibility == "public" }
 }
 
 // MARK: - Persistence (UserDefaults に保存するゲーム進行)
@@ -167,6 +242,7 @@ struct SaveState: Codable {
     var friends: [Friend] = []
     var premium: Bool = false
     var linkedServices: [String: Bool] = [:]
+    var nowPlayingShareMode: String = "off"
     var hintTickets: Int = 0
     var ownedDecorations: [String] = []
     var equippedDecoration: String? = nil
@@ -181,6 +257,8 @@ struct SaveState: Codable {
     var encounterCooldowns: [String: Date] = [:]
     var missionCurrent: Int? = nil
     var previewPlays: [String: PreviewRecord] = [:]
+    var customImages: [String: String] = [:]   // trackId -> base64 JPEG（本人画面のみ表示）
+    var avatarImage: String? = nil              // プロフィールアイコン base64
 
     init() {}
 
@@ -195,6 +273,7 @@ struct SaveState: Codable {
         d.friends           = (try? c.decode([Friend].self, forKey: .friends)) ?? d.friends
         d.premium           = (try? c.decode(Bool.self, forKey: .premium)) ?? d.premium
         d.linkedServices    = (try? c.decode([String: Bool].self, forKey: .linkedServices)) ?? d.linkedServices
+        d.nowPlayingShareMode = (try? c.decode(String.self, forKey: .nowPlayingShareMode)) ?? d.nowPlayingShareMode
         d.hintTickets       = (try? c.decode(Int.self, forKey: .hintTickets)) ?? d.hintTickets
         d.ownedDecorations  = (try? c.decode([String].self, forKey: .ownedDecorations)) ?? d.ownedDecorations
         d.equippedDecoration = (try? c.decode(String?.self, forKey: .equippedDecoration)) ?? d.equippedDecoration
@@ -209,6 +288,8 @@ struct SaveState: Codable {
         d.encounterCooldowns = (try? c.decode([String: Date].self, forKey: .encounterCooldowns)) ?? d.encounterCooldowns
         d.missionCurrent    = (try? c.decode(Int?.self, forKey: .missionCurrent)) ?? d.missionCurrent
         d.previewPlays      = (try? c.decode([String: PreviewRecord].self, forKey: .previewPlays)) ?? d.previewPlays
+        d.customImages      = (try? c.decode([String: String].self, forKey: .customImages)) ?? d.customImages
+        d.avatarImage       = (try? c.decode(String?.self, forKey: .avatarImage)) ?? d.avatarImage
         self = d
     }
 }
