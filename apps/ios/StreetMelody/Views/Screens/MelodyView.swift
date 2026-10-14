@@ -4,9 +4,10 @@ struct MelodyView: View {
     @EnvironmentObject var vm: AppViewModel
 
     var body: some View {
-        ScrollView {
+        MLTabScreen {
+            MLTabTitle(title: "メロディ", subtitle: "ピースを選んでパズルを完成させよう")
+        } content: {
             VStack(spacing: 0) {
-                screenTitle
                 if vm.encounters.isEmpty {
                     emptyState
                 } else if vm.allEncountersDone {
@@ -21,12 +22,7 @@ struct MelodyView: View {
                     encounterList
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 22)
-            .padding(.bottom, 112)
         }
-        .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
         .onAppear { vm.ensureActiveEncounter() }
     }
 
@@ -95,18 +91,6 @@ struct MelodyView: View {
 
     // MARK: - Screen title
 
-    private var screenTitle: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("メロディ")
-                    .font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
-                Text("ピースを選んでパズルを完成させよう")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
-            }
-            Spacer()
-        }
-        .padding(.bottom, 18)
-    }
 
     // MARK: - Encounter progress bar
 

@@ -4,29 +4,16 @@ struct RankingView: View {
     @EnvironmentObject var vm: AppViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                header
-                tabSwitcher.padding(.bottom, 14)
-                rankingContent
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 22)
-            .padding(.bottom, 112)
+        MLTabScreen {
+            MLTabTitle(title: "ランキング")
+        } pinned: {
+            tabSwitcher
+        } content: {
+            rankingContent
         }
-        .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
     }
 
     // MARK: - Header
-
-    private var header: some View {
-        HStack {
-            Text("ランキング").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
-            Spacer()
-        }
-        .padding(.bottom, 14)
-    }
 
     // MARK: - Tab switcher
 

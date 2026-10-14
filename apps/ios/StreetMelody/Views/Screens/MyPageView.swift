@@ -11,7 +11,9 @@ struct MyPageView: View {
     @State private var avatarItem: PhotosPickerItem?
 
     var body: some View {
-        ScrollView {
+        MLTabScreen {
+            MLTabTitle(title: "マイページ")
+        } content: {
             VStack(spacing: 0) {
                 profileHeader
                 melodyButtons
@@ -21,12 +23,7 @@ struct MyPageView: View {
                 accountSection
                 settingsMenu
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 22)
-            .padding(.bottom, 112)
         }
-        .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
         .task { await vm.loadSharedFeed(); await vm.loadSocialGraph() }
         .sheet(isPresented: $showManualShare) { manualShareSheet }
         .onChange(of: avatarItem) { item in

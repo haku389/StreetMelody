@@ -5,32 +5,20 @@ struct CollectionView: View {
     @State private var searchText = ""
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                header
+        // 区分切替は上端に残す（下まで送っても切り替えられるように）
+        MLTabScreen {
+            VStack(spacing: 12) {
+                MLTabTitle(title: "コレクション")
                 searchBar
-                tabSwitcher.padding(.bottom, 14)
-                tabContent
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 22)
-            .padding(.bottom, 112)
+        } pinned: {
+            tabSwitcher
+        } content: {
+            tabContent
         }
-        .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
     }
 
     // MARK: - Header
-
-    private var header: some View {
-        HStack {
-            Text("コレクション")
-                .font(.system(size: 20, weight: .black))
-                .foregroundStyle(.primary)
-            Spacer()
-        }
-        .padding(.bottom, 14)
-    }
 
     // MARK: - Search bar
 
@@ -44,7 +32,6 @@ struct CollectionView: View {
         .padding(.horizontal, 14).padding(.vertical, 12)
         .background(Color(hex: "FFFFFF"), in: RoundedRectangle(cornerRadius: 20))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "E0D8F7")))
-        .padding(.bottom, 14)
     }
 
     // MARK: - Tab switcher
@@ -110,6 +97,7 @@ struct CollectionView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16).mlCard()
         }
     }

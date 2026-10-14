@@ -5,22 +5,21 @@ struct HomeView: View {
     @ObservedObject private var music = MusicConnectManager.shared
 
     var body: some View {
-        ScrollView {
+        // 上段（プロフィール）はスクロールで隠れ、レベルは上端に残す（StyleCare の LevelBar と同じ）
+        MLTabScreen {
+            headerRow
+        } pinned: {
+            levelBar
+        } content: {
             VStack(spacing: 0) {
-                headerRow
                 notificationBanner
                 nowPlayingPanel
                 heroPanel
                 collectionPanel
                 missionPanel
                 recentTracksPanel
-                    .padding(.bottom, 112)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 22)
         }
-        .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
     }
 
     // MARK: - Header
@@ -28,28 +27,40 @@ struct HomeView: View {
     private var headerRow: some View {
         HStack(spacing: 12) {
             ZStack(alignment: .topTrailing) {
-                Circle()
-                    .fill(Color(hex: "EDE8FF"))
-                    .frame(width: 54, height: 54)
-                    .overlay(Text("🎵").font(.title2))
-                    .shadow(color: Color(hex: "7248E0").opacity(0.15), radius: 8, y: 4)
+                Group {
+                    // マイページで設定したアイコンがあればそれを出す
+                    if let img = vm.avatarUIImage() {
+                        Image(uiImage: img).resizable().scaledToFill()
+                    } else {
+                        Circle().fill(Color(hex: "EDE8FF")).overlay(Text("🎵").font(.title2))
+                    }
+                }
+                .frame(width: 50, height: 50).clipShape(Circle())
+                .shadow(color: Color(hex: "7248E0").opacity(0.15), radius: 8, y: 4)
                 if let deco = vm.equippedDecoration,
                    let item = vm.shopItems.first(where: { $0.id == deco }) {
                     Text(item.icon).font(.system(size: 16)).offset(x: 6, y: -6)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(vm.user?.name ?? "StreetMelodyユーザー")
-                    .font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
-                let lv = vm.levelInfo()
-                Text("Lv.\(lv.level)").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
-                ProgressBarView(value: Double(lv.current) / Double(max(lv.next, 1))).frame(height: 6)
-            }
+            Text(vm.profile.displayName ?? vm.user?.name ?? "StreetMelodyユーザー")
+                .font(.system(size: 17, weight: .black)).foregroundStyle(.primary)
+                .lineLimit(1).minimumScaleFactor(0.75)
             Spacer()
             coinPill
         }
-        .padding(.bottom, 18)
+    }
+
+    /// レベル（上段が隠れても上端に残る）
+    private var levelBar: some View {
+        let lv = vm.levelInfo()
+        return HStack(spacing: 10) {
+            Text("Lv.\(lv.level)").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+            ProgressBarView(value: Double(lv.current) / Double(max(lv.next, 1))).frame(height: 6)
+            Text("あと\(lv.next - lv.current) EXP")
+                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+                .lineLimit(1).fixedSize()
+        }
     }
 
     private var coinPill: some View {
