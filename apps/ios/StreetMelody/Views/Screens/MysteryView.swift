@@ -81,6 +81,7 @@ struct MysteryView: View {
                 PuzzlePiecesView(ownedPieces: track.ownedPieces,
                                  color: track.color,
                                  seed: track.id,
+                                 thumbnailURL: track.thumbnailURL,
                                  cornerRadius: 22,
                                  revealAll: true,
                                  blur: true)

@@ -32,6 +32,7 @@ struct PuzzleCompleteOverlay: View {
             PuzzlePiecesView(ownedPieces: track.ownedPieces,
                              color: track.color,
                              seed: track.id,
+                             thumbnailURL: track.thumbnailURL,
                              cornerRadius: 16,
                              revealAll: true)
                 .padding(.bottom, 18)

@@ -33,16 +33,18 @@ func artGradient(for color: String) -> LinearGradient {
     }
 }
 
-// MARK: - MelodyCardArtwork（MelodyLien独自生成アート）
+// MARK: - MelodyCardArtwork（曲アート）
 //
-// 著作権方針：公式MVサムネ・ジャケット・アーティスト画像は一切使わない。
-// 曲ごとに id から決定的に生成する独自アート（ジャンル色＋雰囲気色＋波形＋音符＋パズル模様）。
-// customImage が渡された場合（本人画面のみ）はその画像を表示する。
+// 表示の優先順：本人のカスタム画像 ＞ YouTube サムネイル ＞ 独自生成カード（サムネが無い曲のみ）。
+// blur は未解放曲のネタバレ防止（カスタム画像には掛けない）。
 struct MelodyCardArtwork: View {
     var color: String = "violet"
     var seed: String = ""
+    var thumbnailURL: URL? = nil
     var customImage: UIImage? = nil
     var blur: Bool = false
+
+    private var blurs: Bool { blur && customImage == nil }
 
     var body: some View {
         GeometryReader { geo in
@@ -50,6 +52,9 @@ struct MelodyCardArtwork: View {
             ZStack {
                 if let ui = customImage {
                     Image(uiImage: ui).resizable().scaledToFill().frame(width: w, height: h).clipped()
+                } else if let url = thumbnailURL {
+                    artGradient(for: color)            // 読み込み中の下地
+                    CachedThumbnail(url: url)
                 } else {
                     artGradient(for: color)
                     RadialGradient(colors: [Self.moodColor(seed).opacity(0.5), .clear],
@@ -63,8 +68,10 @@ struct MelodyCardArtwork: View {
                 }
             }
             .frame(width: w, height: h)
-            .blur(radius: blur ? 14 : 0)
+            .blur(radius: blurs ? 12 : 0)
+            .scaleEffect(blurs ? 1.15 : 1)   // ぼかしの縁が透けないよう少し拡大
         }
+        .clipped()
     }
 
     private func puzzleGrid(w: CGFloat, h: CGFloat) -> some View {
@@ -101,12 +108,15 @@ struct MelodyCardArtwork: View {
 
 // MARK: - ArtBlockView
 
-/// 曲アート（正方形〜任意比率）。MelodyLien独自生成カードを表示する。
-/// customImage は本人画面のみ渡す（公開表示では常に nil＝生成カード）。
+/// 曲アート（正方形〜任意比率）。YouTube サムネイルを中央クロップで表示し、
+/// 未解放曲はネタバレ防止でモザイク。サムネが無い曲は独自生成カード。
+/// customImage は本人画面のみ渡す。
 struct ArtBlockView: View {
     var color: String = "violet"
     var cornerRadius: CGFloat = 18
     var seed: String = ""
+    var thumbnailURL: URL? = nil
+    var mosaic: Bool = false
     var customImage: UIImage? = nil
 
     init(color: String, cornerRadius: CGFloat = 18, customImage: UIImage? = nil) {
@@ -119,11 +129,14 @@ struct ArtBlockView: View {
         self.color = track.color
         self.cornerRadius = cornerRadius
         self.seed = track.id
+        self.thumbnailURL = track.thumbnailURL
+        self.mosaic = !track.isUnlocked
         self.customImage = customImage
     }
 
     var body: some View {
-        MelodyCardArtwork(color: color, seed: seed, customImage: customImage)
+        MelodyCardArtwork(color: color, seed: seed, thumbnailURL: thumbnailURL,
+                          customImage: customImage, blur: mosaic)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color.white.opacity(0.45), lineWidth: 1))
     }
@@ -132,14 +145,15 @@ struct ArtBlockView: View {
 // MARK: - PuzzlePiecesView
 
 /// 設計書準拠の 6×4＝24ピースのパズル表示。
-/// 所持ピースだけ独自生成カードを見せ、未所持は lockedピース（淡い紫）で隠す。
+/// 所持ピースだけサムネイル（無ければ独自生成カード）を見せ、未所持は lockedピース（淡い紫）で隠す。
 /// - revealAll: フル表示（全ピースを見せる）
 /// - blur: モザイク（未解放曲のフル表示などで使用）
-/// - customImage: 本人画面のみ。公開表示では nil（生成カード）。
+/// - customImage: 本人画面のみ。
 struct PuzzlePiecesView: View {
     let ownedPieces: [Int]
     var color: String = "violet"
     var seed: String = ""
+    var thumbnailURL: URL? = nil
     var customImage: UIImage? = nil
     var cornerRadius: CGFloat = 16
     var revealAll: Bool = false
@@ -162,8 +176,8 @@ struct PuzzlePiecesView: View {
                         .fill(Color(hex: "E3DAF5"))
                         .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color(hex: "D3C7EE"), lineWidth: 0.5))
                 }
-                // 独自生成カード（所持ピースのみマスク表示）
-                MelodyCardArtwork(color: color, seed: seed, customImage: customImage, blur: blur)
+                // サムネイル（所持ピースのみマスク表示）
+                MelodyCardArtwork(color: color, seed: seed, thumbnailURL: thumbnailURL, customImage: customImage, blur: blur)
                 .frame(width: w, height: h)
                 .mask(
                     pieceGrid(w: w, h: h) { n in

@@ -212,6 +212,7 @@ struct MelodyView: View {
                 PuzzlePiecesView(ownedPieces: track?.ownedPieces ?? [],
                                  color: track?.color ?? "violet",
                                  seed: track?.id ?? "",
+                                 thumbnailURL: track?.thumbnailURL,
                                  cornerRadius: 18,
                                  revealAll: isFull,
                                  blur: isFull && !complete)
