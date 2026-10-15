@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "streetmelody-relay",
+  "main": "src/index.js",
+  // **未来の日付にしない。** Cloudflare は UTC で判定するので、
+  // JST の「今日」を書くと先回りして 10021 で弾かれる（Life_LevelUP で踏んだ）
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // cron は置かない。**本人が何かを送ってきたときに、本人のぶんだけ流す。**
+  // 全員ぶんを流すには service_role が要り、その鍵1本でハブを迂回して
+  // life_events を書けるようになる（WakeFirst・Life_LevelUP と同じ判断）
+  "vars": {
+    // StyleCare / DailyBasket / Life_LevelUP / WakeFirst と同じプロジェクト（共通アカウント）。
+    // 2026-10-15 に StreetMelody もここへ移った（streetmelody スキーマ）
+    "SUPABASE_URL": "https://oaurexinrtvzvtvotqaw.supabase.co"
+  }
+
+  // 鍵は vars に置かない。wrangler secret put で入れる:
+  //   SUPABASE_ANON_KEY    トークンの検証と PostgREST に要る
+  //   LIFE_OS_API_URL      ハブの URL
+  //   LIFE_OS_APP_SECRET   ハブへの HMAC 署名鍵。ハブ側の APP_SECRETS に
+  //                        `streetmelody=<同じ値>` を足して初めて通る
+  //
+  // ハブの2つが無い間は、すれちがいは Supabase に溜まるだけで流れない
+  // （失敗ではない。入れた日に溜まったぶんが流れる）
+}

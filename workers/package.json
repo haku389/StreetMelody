@@ -1,0 +1,14 @@
+{
+  "name": "streetmelody-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test",
+    "deploy": "node --test && wrangler deploy && node scripts/check-deployed.mjs",
+    "check": "node scripts/check-deployed.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
