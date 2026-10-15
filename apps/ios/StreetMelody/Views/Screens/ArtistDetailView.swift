@@ -25,7 +25,7 @@ struct ArtistDetailView: View {
             }
         }
         .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
+        .background(MLBackground())
         .navigationBarBackButtonHidden(true)
         .mlNavBarBackground()
         .toolbar {

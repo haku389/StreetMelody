@@ -109,6 +109,18 @@ actor SupabaseClient {
         return false
     }
 
+    /// 共通アカウントのプロジェクトで有効なログイン方法（"google" / "spotify" など）。
+    /// ログイン画面は、ここに入っているものだけを押せるようにする（無効なまま押して失敗しないように）。
+    func enabledProviders() async -> Set<String> {
+        guard let url = URL(string: baseURL + "/auth/v1/settings") else { return [] }
+        var req = URLRequest(url: url)
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
+        guard let (data, _) = try? await dataWithRetry(req),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let ext = obj["external"] as? [String: Any] else { return [] }
+        return Set(ext.compactMap { k, v in (v as? Bool) == true ? k : nil })
+    }
+
     func signOut() {
         accessToken = nil; refreshToken = nil; userId = nil; email = nil; isAnonymous = false
         UserDefaults.standard.removeObject(forKey: sessionKey)

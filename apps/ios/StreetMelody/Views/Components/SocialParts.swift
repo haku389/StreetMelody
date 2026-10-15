@@ -122,9 +122,11 @@ struct MLMenuCard: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(tint.opacity(0.13))
-                    .frame(width: 40, height: 40)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(LinearGradient(colors: [tint.opacity(0.22), tint.opacity(0.08)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white.opacity(0.7), lineWidth: 1))
+                    .frame(width: 42, height: 42)
                     .overlay(Image(systemName: icon).font(.system(size: 18, weight: .semibold)).foregroundStyle(tint))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.system(size: 14, weight: .black)).foregroundStyle(.primary)

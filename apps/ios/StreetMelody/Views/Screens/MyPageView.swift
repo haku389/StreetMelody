@@ -166,7 +166,7 @@ struct MyPageView: View {
                 }
                 .foregroundStyle(Color(hex: "7248E0"))
                 .frame(maxWidth: .infinity).padding(.vertical, 16)
-                .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 18))
+                .mlCard(radius: 18, elevation: .low)
             }
             .buttonStyle(.plain)
             Button { vm.navigate(to: .melodyMix) } label: {
@@ -178,7 +178,8 @@ struct MyPageView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity).padding(.vertical, 16)
                 .background(LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "7248E0")], startPoint: .top, endPoint: .bottom),
-                            in: RoundedRectangle(cornerRadius: 18))
+                            in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .mlGlow()
             }
             .buttonStyle(.plain)
         }

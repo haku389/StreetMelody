@@ -32,7 +32,7 @@ struct MLTabScreen<Top: View, Pinned: View, Content: View>: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Color(hex: "F5F0FF").ignoresSafeArea()
+            MLBackground()
 
             ScrollView {
                 content

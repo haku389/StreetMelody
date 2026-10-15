@@ -26,7 +26,7 @@ struct MelodyMixView: View {
             .padding(.horizontal, 18).padding(.top, 22).padding(.bottom, 112)
         }
         .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
+        .background(MLBackground())
         .navigationBarBackButtonHidden(true)
         .mlNavBarBackground()
         .toolbar {
@@ -94,7 +94,8 @@ struct MelodyMixView: View {
             .font(.system(size: 16, weight: .black)).foregroundStyle(.white)
             .frame(maxWidth: .infinity).padding(.vertical, 16)
             .background(LinearGradient(colors: [Color(hex: "9670F0"), purple], startPoint: .leading, endPoint: .trailing),
-                        in: RoundedRectangle(cornerRadius: 18))
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .mlGlow()
         }
     }
 

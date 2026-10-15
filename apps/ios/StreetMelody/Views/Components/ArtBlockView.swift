@@ -137,8 +137,9 @@ struct ArtBlockView: View {
     var body: some View {
         MelodyCardArtwork(color: color, seed: seed, thumbnailURL: thumbnailURL,
                           customImage: customImage, blur: mosaic)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color.white.opacity(0.45), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).stroke(Color.white.opacity(0.45), lineWidth: 1))
+            .mlShadow(.low)
     }
 }
 

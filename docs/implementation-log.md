@@ -1125,3 +1125,9 @@ StyleCare（`StyleCareNative/src/constants/flags.js`・`TabBar.js`・`GlassSegme
 - **検証**：DB の中で既存の2人のつもりで申請・承認を試し、最後に全部取り消すテストで12項目を確認（申請した側は承認できない／いきなり承認済みは拒否／フレンド前のベストは拒否／受けた側の承認で成立／フレンド限定の曲はフレンドだけ読める／他人の申請は見えない／お互いに申請したら成立／解除でベストも消える ほか）。安全チェック（advisors）に `streetmelody` の指摘なし。
 - **残り（はくのダッシュボード作業）**：① Settings → API → Exposed schemas に `streetmelody` を足す（これが無いとアプリから読めない）② Authentication → URL Configuration → Redirect URLs に `com.streetmelody.app://login-callback`（Google ログイン用）。
 - **未移行**：曲カタログ（`artists` / `tracks`）。Go サーバーは旧プロジェクトから読めないので内蔵の見本で動いている。移すには Go の接続先変更と Cloud Run への再デプロイが要る。
+
+### 見た目の奥行き・音楽サービスでのログイン（2026-10-15）
+
+- **奥行きの仕組み** `Views/Components/Theme.swift`：影を2枚重ね（足元の短く濃い影＋広く淡い影、色はアプリの紫を暗くした色）。`mlCard`（上が光る縁＋白→淡紫の面＋影。HomeView の拡張から移した）、`mlInset`（カードの中の小さなマスを少しくぼませる）、`mlGlow`（主ボタンの色付きの光）、`MLBackground`（一枚色をやめ、上に紫とピンクの淡いにじみ）。背景は17か所を置き換え。主ボタン・試聴ボタン・共通のボタン部品に光、メニューのアイコンにグラデーションと白い縁、曲のジャケットに軽い影。
+- **ログイン**：共通プロジェクトで有効なログイン方法を `/auth/v1/settings` から読み、押せるボタンを決める（無効なまま押して失敗しない）。Spotify のボタンを戻した（有効化されたら自動で押せる）。Google は「YouTube Music」と併記。Apple は有料の開発者登録が要るので出さない。
+- **確認**：Exposed schemas に `streetmelody` が入った（未ログインでの読み取りは 42501＝権限なし、が正しい）。シミュレーターで共通アカウントにログインでき、名前「はく」・自動で振られた ID が共通の public.profiles から読めた。

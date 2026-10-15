@@ -18,7 +18,7 @@ struct PuzzleView: View {
             .padding(.bottom, 112)
         }
         .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
+        .background(MLBackground())
         .navigationBarBackButtonHidden(true)
         .mlNavBarBackground()
         .toolbar {
@@ -139,8 +139,7 @@ struct PuzzleView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "E0D8F7")))
+        .mlInset(radius: 18)
     }
 
     // MARK: - カスタムパズル画像（本人の画面のみ。公開には出さない）

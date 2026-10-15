@@ -34,7 +34,7 @@ struct FriendAddView: View {
         }
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
+        .background(MLBackground())
         .navigationBarBackButtonHidden(true)
         .mlNavBarBackground()
         .toolbar {
@@ -103,7 +103,8 @@ struct FriendAddView: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity).padding(.vertical, 14)
             .background(LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "7248E0")], startPoint: .top, endPoint: .bottom),
-                        in: RoundedRectangle(cornerRadius: 14))
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .mlGlow()
         }
         .buttonStyle(.plain)
         .disabled(vm.myHandle == nil)

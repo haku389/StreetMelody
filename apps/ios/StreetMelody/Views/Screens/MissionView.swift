@@ -21,7 +21,7 @@ struct MissionView: View {
             .padding(.horizontal, 18).padding(.top, 22).padding(.bottom, 112)
         }
         .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
+        .background(MLBackground())
         .navigationBarBackButtonHidden(true)
         .mlNavBarBackground()
         .toolbar {

@@ -5,7 +5,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color(hex: "F5F0FF").ignoresSafeArea()
+            MLBackground()
 
             // タブバー（StyleCare と同じ切り分け）
             //  iOS 26 以降: OS 標準のタブバー。Liquid Glass は OS の実装なので、真似ずに標準を使う

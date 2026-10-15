@@ -32,7 +32,7 @@ struct MysteryView: View {
             .padding(.bottom, 112)
         }
         .scrollIndicators(.hidden)
-        .background(Color(hex: "F5F0FF").ignoresSafeArea())
+        .background(MLBackground())
         .navigationBarBackButtonHidden(true)
         .mlNavBarBackground()
         .toolbar {
@@ -234,7 +234,17 @@ extension View {
             .foregroundStyle(buttonFG(style))
             .frame(maxWidth: small ? nil : .infinity, minHeight: small ? 32 : 40)
             .padding(.horizontal, small ? 10 : 14)
-            .background(buttonBG(style), in: RoundedRectangle(cornerRadius: small ? 13 : 16))
+            .background(buttonBG(style), in: RoundedRectangle(cornerRadius: small ? 13 : 16, style: .continuous))
+            .shadow(color: buttonGlow(style), radius: small ? 6 : 10, y: small ? 3 : 5)
+    }
+
+    private func buttonGlow(_ style: MLButtonStyle) -> Color {
+        switch style {
+        case .primary: return Color(hex: "7248E0").opacity(0.30)
+        case .pink:    return Color(hex: "FF5C8A").opacity(0.28)
+        case .coin:    return Color(hex: "E0A020").opacity(0.25)
+        case .secondary: return .clear
+        }
     }
 
     private func buttonFG(_ style: MLButtonStyle) -> Color {

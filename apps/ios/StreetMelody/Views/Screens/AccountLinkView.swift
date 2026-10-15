@@ -6,7 +6,8 @@ import SwiftUI
 /// 他のアプリで作ったアカウントでここにもログインできる。
 /// 匿名ログイン（ゲストの格上げ）はやめた。ログインしていないあいだは端末の中だけで動き、
 /// ログインすると端末の進行がアカウントへ上がる。
-/// 使えるのはメールと Google（共通アカウントのプロジェクトで有効なもの）。
+/// ログイン方法は、共通アカウントのプロジェクトで有効なものだけを押せるようにする
+/// （メール・Google・Spotify。Apple は有料の開発者登録が要るので今は無い）。
 struct AccountLinkView: View {
     @EnvironmentObject var vm: AppViewModel
     @Environment(\.dismiss) private var dismiss
@@ -17,7 +18,8 @@ struct AccountLinkView: View {
     @State private var password = ""
     @State private var error: String?
     @State private var notice: String?
-    @State private var working: String?   // 実行中のボタン: "email" / "google"
+    @State private var working: String?   // 実行中のボタン: "email" / "google" / "spotify"
+    @State private var providers: Set<String> = ["email", "google"]
 
     var body: some View {
         NavigationStack {
@@ -66,7 +68,18 @@ struct AccountLinkView: View {
                         Rectangle().fill(Color(hex: "E0D8F7")).frame(height: 1)
                     }
 
-                    googleButton
+                    providerButton("spotify", title: "Spotify で続ける",
+                                   fg: .white, bg: Color(hex: "1DB954"), border: Color(hex: "1DB954")) {
+                        await vm.signInWithSpotify(link: false)
+                    }
+                    providerButton("google", title: "Google で続ける（YouTube Music）",
+                                   fg: Color(hex: "1c1c22"), bg: .white, border: Color(hex: "E0D8F7")) {
+                        await vm.signInWithGoogle(link: false)
+                    }
+                    if !providers.contains("spotify") {
+                        Text("Spotify でのログインは準備中です（共通アカウントの設定待ち）")
+                            .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B8ACD6"))
+                    }
 
                     Spacer(minLength: 8)
                 }
@@ -81,6 +94,7 @@ struct AccountLinkView: View {
                 }
             }
             .onChange(of: mode) { _ in error = nil; notice = nil }
+            .task { providers = await SupabaseClient.shared.enabledProviders() }
         }
     }
 
@@ -105,26 +119,32 @@ struct AccountLinkView: View {
         }
     }
 
-    private var googleButton: some View {
-        let loading = working == "google"
+    /// 音楽サービスなどのログインボタン。プロジェクトで無効なものは押せない。
+    private func providerButton(_ id: String, title: String, fg: Color, bg: Color, border: Color,
+                                action: @escaping () async -> String?) -> some View {
+        let loading = working == id
+        let enabled = providers.contains(id)
+        let serviceKey = id == "spotify" ? "spotify" : (id == "google" ? "youtubeMusic" : id)
         return Button {
-            error = nil; notice = nil; working = "google"
+            error = nil; notice = nil; working = id
             Task {
-                let err = await vm.signInWithGoogle(link: false)
+                let err = await action()
                 working = nil
                 if let err { error = err } else { dismiss() }
             }
         } label: {
-            HStack(spacing: 8) {
-                if loading { ProgressView().tint(Color(hex: "1c1c22")) }
-                Text(loading ? "接続中…" : "Google で続ける")
+            HStack(spacing: 10) {
+                if loading { ProgressView().tint(fg) } else { ServiceIcon(service: serviceKey, size: 22) }
+                Text(loading ? "接続中…" : title)
                     .font(.system(size: 14, weight: .black))
-                    .foregroundStyle(Color(hex: "1c1c22"))
+                    .foregroundStyle(fg)
             }
-            .frame(maxWidth: .infinity, minHeight: 46)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "E0D8F7")))
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(border))
+            .mlShadow(.low)
         }
-        .disabled(working != nil)
+        .disabled(working != nil || !enabled)
+        .opacity(enabled ? 1 : 0.45)
     }
 }

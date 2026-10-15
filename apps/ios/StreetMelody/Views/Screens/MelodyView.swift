@@ -298,8 +298,9 @@ struct MelodyView: View {
                             canPreview
                                 ? LinearGradient(colors: [Color(hex: "79C7FF"), Color(hex: "5BA8F5")], startPoint: .top, endPoint: .bottom)
                                 : LinearGradient(colors: [Color(hex: "EDE8FF"), Color(hex: "EDE8FF")], startPoint: .top, endPoint: .bottom),
-                            in: RoundedRectangle(cornerRadius: 16)
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
                         )
+                        .mlGlow(canPreview ? Color(hex: "3B8FE8") : .clear)
                 }
                 .buttonStyle(.plain)
                 .disabled(!canPreview)
@@ -318,8 +319,9 @@ struct MelodyView: View {
                         onCooldown
                             ? LinearGradient(colors: [Color(hex: "B8ACD6"), Color(hex: "B8ACD6")], startPoint: .top, endPoint: .bottom)
                             : LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "7248E0")], startPoint: .top, endPoint: .bottom),
-                        in: RoundedRectangle(cornerRadius: 20)
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous)
                     )
+                    .mlGlow(onCooldown ? .clear : Color(hex: "7248E0"))
             }
             .disabled(onCooldown)
             .buttonStyle(.plain)

@@ -96,8 +96,10 @@ struct HomeView: View {
                         .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 12))
                 }
                 .padding(.horizontal, 14).padding(.vertical, 12)
-                .background(Color(hex: "FFFFFF"), in: RoundedRectangle(cornerRadius: 18))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "7248E0").opacity(0.35)))
+                .mlCard(radius: 18)
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(LinearGradient(colors: [Color(hex: "9670F0").opacity(0.55), Color(hex: "FF8FB5").opacity(0.45)],
+                                                 startPoint: .leading, endPoint: .trailing), lineWidth: 1.2))
             }
             .buttonStyle(.plain)
             .padding(.bottom, 14)
@@ -223,8 +225,8 @@ struct HomeView: View {
             Text(value).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8).padding(.vertical, 12)
-        .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 18))
+        .padding(.horizontal, 10).padding(.vertical, 12)
+        .mlInset(radius: 18)
     }
 
     // MARK: - Mission panel
@@ -301,17 +303,6 @@ struct HomeView: View {
             }
         }
         .padding(16).mlCard()
-    }
-}
-
-// MARK: - Card modifier
-
-extension View {
-    func mlCard() -> some View {
-        self
-            .background(Color(hex: "FFFFFF"), in: RoundedRectangle(cornerRadius: 24))
-            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color(hex: "E0D8F7")))
-            .shadow(color: Color(hex: "7248E0").opacity(0.07), radius: 12, y: 4)
     }
 }
 
