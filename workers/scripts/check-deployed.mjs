@@ -22,3 +22,10 @@ if (got.join(",") !== want.join(",")) {
 }
 console.log(`配信中の版は、いまのコードと同じ項目を返す（${got.join(", ")}）`);
 for (const [k, v] of Object.entries(body)) if (typeof v === "string") console.log(`  ${k}: ${v}`);
+
+// ハブと鍵が合っているか（ハブが設定済みのときだけ。何も積まない）
+if (String(body.hub).startsWith("設定済み")) {
+  const p = await (await fetch(`${URL_}/health?probe=hub`)).json();
+  console.log(`  ハブとの鍵: ${p.hub_signature}`);
+  if (String(p.hub_signature).startsWith("★")) process.exit(1);
+}

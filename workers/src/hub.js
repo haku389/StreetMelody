@@ -39,6 +39,32 @@ export function enabled(env) {
   return Boolean(env.LIFE_OS_API_URL && env.LIFE_OS_APP_SECRET);
 }
 
+// probeSignature — **ハブと鍵が合っているか**を、何も積まずに確かめる
+//
+// 鍵は中継とハブの2か所に同じ値で入れる（scripts/set-hub-secret.sh）。値は誰にも
+// 見えないので、合っているかは送ってみるしかない。ハブは**署名を確かめてから**
+// 項目の欠けを調べるので、項目の足りない1件を正しい署名で送ると:
+//   400「足りない項目がある」 … 鍵は合っている（何も保存されない）
+//   401「署名が合わない」     … 鍵が違う（片方だけ入れ替えた、など）
+export async function probeSignature(env) {
+  if (!enabled(env)) return "未設定";
+  const body = JSON.stringify([{ app: APP_NAME }]);
+  let res;
+  try {
+    res = await fetch(`${env.LIFE_OS_API_URL}${EVENTS_PATH}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Signature": await signBody(env.LIFE_OS_APP_SECRET, body) },
+      body,
+    });
+  } catch (e) {
+    return `★届かない: ${e.message}`;
+  }
+  const text = await res.text();
+  if (res.status === 400 && text.includes("足りない項目")) return "合っている";
+  if (res.status === 401) return "★合わない（401。ハブの APP_SECRETS と LIFE_OS_APP_SECRET が違う）";
+  return `★分からない（${res.status}: ${text.slice(0, 120)}）`;
+}
+
 // signBody — 本文に対する HMAC-SHA256。hex 小文字。
 //
 // **大文字で送ると暗号的に正しくても 401**（契約 §3）。

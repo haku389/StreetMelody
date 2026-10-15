@@ -193,3 +193,29 @@ test("知らない道は 404、GET は 405", async () => {
   const b = await worker.fetch(new Request("https://relay.test/v1/encounters"), env, ctx);
   assert.equal(b.status, 405);
 });
+
+test("ハブとの鍵の確かめ: 400「足りない項目」なら合っている、401 なら合わない。何も積まない", async () => {
+  const probe = () => worker.fetch(new Request("https://relay.test/health?probe=hub"), env, ctx).then((r) => r.json());
+
+  routes["/v1/events"] = () => reply(400, { error: "足りない項目がある", index: 0 });
+  assert.deepEqual(await probe(), { hub_signature: "合っている" });
+  const sent = called("/v1/events").at(-1);
+  // 送るのは項目の足りない1件だけ（保存される形にしない）
+  assert.deepEqual(JSON.parse(sent.body), [{ app: "streetmelody" }]);
+  assert.equal(sent.headers.get("X-Signature"),
+    createHmac("sha256", env.LIFE_OS_APP_SECRET).update(sent.body).digest("hex"));
+
+  routes["/v1/events"] = () => reply(401, { error: "署名が合わない" });
+  assert.match((await probe()).hub_signature, /^★合わない/);
+
+  routes["/v1/events"] = () => reply(200, { accepted: 1 });
+  assert.match((await probe()).hub_signature, /^★分からない/);
+
+  // DB には触らない
+  assert.equal(called("/rest/v1/rpc/put_encounters").length, 0);
+});
+
+test("ふつうの /health はハブへ送らない", async () => {
+  await worker.fetch(new Request("https://relay.test/health"), env, ctx);
+  assert.equal(called("/v1/events").length, 0);
+});

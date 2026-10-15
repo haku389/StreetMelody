@@ -22,7 +22,7 @@
 import { verifyUser, hasUserID } from "./auth.js";
 import { putEncounters } from "./db.js";
 import { checkEncounters, sortOut } from "./events.js";
-import { enabled as hubEnabled } from "./hub.js";
+import { enabled as hubEnabled, probeSignature } from "./hub.js";
 import { flushMine } from "./flush.js";
 
 // 1件はおよそ120バイト。200件でも30KB に届かない
@@ -37,6 +37,11 @@ const json = (body, status = 200) =>
 export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
+
+    // 鍵がハブと合っているか（何も積まない）。毎回ハブへ1回送るので、/health とは分ける
+    if (request.method === "GET" && path === "/health" && new URL(request.url).searchParams.get("probe") === "hub") {
+      return json({ hub_signature: await probeSignature(env) });
+    }
 
     if (request.method === "GET" && path === "/health") {
       // 何が繋がっていないかを見えるようにする。「動いているのに流れていない」を黙って通さない

@@ -67,8 +67,13 @@ gcloud run services update "$SERVICE" --project "$PROJECT" --region "$REGION" \
 echo "  足した"
 
 echo "── 確かめる（名前と長さだけ）"
-AFTER=$(read_secrets)
-printf '%s' "$AFTER" | tr ',' '\n' | while IFS= read -r p; do
-  [ -n "$p" ] && echo "  ${p%%=*}（鍵 $(( ${#p} - ${#p%%=*} - 1 )) 文字）"
-done
+# 鍵の値は出さない。名前と長さだけ（2026-10-15 に bash の書き方の誤りで
+# ここが止まった。長さは python で数える）
+read_secrets | python3 -c "
+import sys
+for p in sys.stdin.read().strip().split(','):
+    n, _, k = p.partition('=')
+    if n: print(f'  {n}（鍵 {len(k)} 文字）')
+"
+# 中継の配信と、ハブとの鍵が合っているか（何も積まない）
 node scripts/check-deployed.mjs
