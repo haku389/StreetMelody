@@ -1113,3 +1113,15 @@ StyleCare（`StyleCareNative/src/constants/flags.js`・`TabBar.js`・`GlassSegme
 - **マイページ**：StyleCare の並び（プロフィールカード：写真・名前「変更」・@ID＋写す・フレンド数・QR → 小見出し＋1項目1枚のメニュー → 契約 → アカウント → アプリについて）。フレンドはメニューの1項目で、申請が届いていると数のバッジ。
 - **「?」の解消**：iOS 26.3 シミュレーターでカラー絵文字が「?」になっていた所（アイコン未設定の🎵・コインの🪙・音楽サービスの🎵）を記号に置き換え（`UserAvatar`・`CoinIcon`・`ServiceIcon`）。音楽サービスは `Resources/ServiceIcons/service_*.png` を置けば公式アイコンに差し替わる（README あり）。
 - 旧「すれ違った相手の交換履歴」画面（`FriendsView`）は前回のマイページ刷新で入口が無くなっていたので、新しいフレンド画面に置き換えた（旧版は git 履歴にある）。
+
+### DB を StyleCare のプロジェクトへ移す（共通アカウント・2026-10-15・はく判断 C）
+
+旧 MelodyLien プロジェクト（wngtvdgzzlkajtbwsurc）が無料プランの上限で停止していたため、DailyBasket（`shopping`）・Life_LevelUP（`lifelevelup`）と同じく **StyleCare のプロジェクト（oaurexinrtvzvtvotqaw）に `streetmelody` スキーマで同居**した。
+
+- **適用済み**：`supabase/migrations/20261015130000_streetmelody_schema.sql`。`profiles`（アプリ固有：好きなアーティスト・曲、誕生日、性別、公開範囲、コイン）／`collected_pieces`／`unlocked_tracks`／`hint_levels`／`exchange_history`（旧 friendships＝すれ違い相手との交換履歴）／`now_playing`（公開・フレンド・ベストを RLS で判定）／`friend_links`・`friend_bests`。全表 RLS ＋「匿名は書けない」を RESTRICTIVE で重ねた。auth.users へのトリガーは足さない（全アプリの登録に効くため）。旧 `supabase/migrations/20261015120000_friend_requests.sql`（旧プロジェクト向け・未適用）は削除。
+- **名前・ユーザーID・ひとことは共通の `public.profiles`**。ID の変更は `public.change_handle`（変更の間隔・重複・最近手放されたIDを見る）、空き確認 `public.is_handle_available`、検索 `public.find_user_by_handle`、名前のまとめ取得 `public.get_display_names`（アイコンURLも返る）。ID の決まりも共通に合わせた（半角英数字と - _、1〜16文字）。
+- **ログイン**：匿名ログインをやめた（このプロジェクトでは止めてある）。未ログインのあいだは端末の中だけで動き、フレンドには「ログインが要ります」を出す。ログインはメール（新規登録は確認メールあり）と Google。Apple・Spotify のログインはこのプロジェクトで無効なのでボタンを外した（Spotify の「今聴いてる曲」連携は別物で残る）。保存場所を変えたので旧プロジェクトのログインは引き継がない。端末の進行はログイン後の同期で上がる。
+- **通信**：全 REST に `Accept-Profile` / `Content-Profile`（既定 `streetmelody`、共通の名前・ID は `public`）。ログインの鍵（1時間）が切れたら1回取り直して再送。ログアウトですれちがいの発信も止める（`BLEManager.stop`）。
+- **検証**：DB の中で既存の2人のつもりで申請・承認を試し、最後に全部取り消すテストで12項目を確認（申請した側は承認できない／いきなり承認済みは拒否／フレンド前のベストは拒否／受けた側の承認で成立／フレンド限定の曲はフレンドだけ読める／他人の申請は見えない／お互いに申請したら成立／解除でベストも消える ほか）。安全チェック（advisors）に `streetmelody` の指摘なし。
+- **残り（はくのダッシュボード作業）**：① Settings → API → Exposed schemas に `streetmelody` を足す（これが無いとアプリから読めない）② Authentication → URL Configuration → Redirect URLs に `com.streetmelody.app://login-callback`（Google ログイン用）。
+- **未移行**：曲カタログ（`artists` / `tracks`）。Go サーバーは旧プロジェクトから読めないので内蔵の見本で動いている。移すには Go の接続先変更と Cloud Run への再デプロイが要る。

@@ -68,7 +68,7 @@ struct ProfileEditView: View {
         card("ユーザーID（必ず公開）") {
             HStack(spacing: 8) {
                 Text("@").font(.system(size: 15, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
-                TextField("英数と _ ・3〜20文字", text: $handle)
+                TextField("英数字と - _ ・1〜16文字", text: $handle)
                     .font(.system(size: 14, weight: .heavy))
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .onChange(of: handle) { _, v in scheduleHandleCheck(v) }
@@ -243,8 +243,8 @@ struct ProfileEditView: View {
     private var handleHint: String {
         switch handleState {
         case .taken: return "そのIDは使われています"
-        case .invalid: return "英数字と _ のみ・3〜20文字"
-        default: return "他の人があなたを見つける・フォローするためのID"
+        case .invalid: return "半角英数字と - _ のみ・1〜16文字"
+        default: return "フレンドがあなたを探すためのID。共通アカウントなので StyleCare などでも同じIDです（変更は一定期間に1回まで）"
         }
     }
 
@@ -287,7 +287,8 @@ struct ProfileEditView: View {
     }
 
     private func isValidHandle(_ h: String) -> Bool {
-        h.range(of: "^[a-z0-9_]{3,20}$", options: .regularExpression) != nil
+        // 共通アカウント（public.is_valid_handle）と同じ決まり：半角英数字と - _、1〜16文字
+        h.range(of: "^[a-z0-9_-]{1,16}$", options: .regularExpression) != nil
     }
 
     private func save() async {

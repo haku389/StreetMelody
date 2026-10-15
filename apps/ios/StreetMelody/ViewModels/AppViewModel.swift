@@ -273,8 +273,8 @@ final class AppViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         await withTaskGroup(of: Void.self) { group in
-            // 方式A: 匿名サインインでセッション確立（per-user 読み書きの起点）。
-            // 匿名無効・通信不可なら静かに失敗し seed 運用を続ける（非破壊）。
+            // 方式A: 保存済みのログイン（共通アカウント）があれば復帰する。
+            // 未ログイン・通信不可なら、端末の中のデータだけで動き続ける（非破壊）。
             group.addTask { await SupabaseClient.shared.bootstrap() }
             // カタログ（曲・サムネイルURL）のみライブAPIから取得し、seed に重ねる。
             // user / collection / mission / encounter / playlist はバックエンドの
@@ -828,6 +828,7 @@ final class AppViewModel: ObservableObject {
     func presentOnboardingIfNeeded() async {
         await loadProfile()
         await loadFriends()
+        startNearbyExchange()   // ログインして user_id が決まったので、すれちがいを始める
         if needsProfileSetup { showProfileEdit = true }
     }
 
@@ -1158,25 +1159,29 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Account（方式A: アカウント連携）
 
-    /// 現在の認証状態（ゲスト/連携メール）を Published に反映。
+    /// 現在の認証状態を Published に反映。isGuestAccount は「ログインしていない」。
     func refreshAccountState() async {
         accountEmail = await SupabaseClient.shared.email
-        isGuestAccount = await SupabaseClient.shared.isAnonymous
+        isGuestAccount = !(await SupabaseClient.shared.isSignedIn)
         friendCode = await SupabaseClient.shared.myFriendCode()
     }
 
-    /// 匿名アカウントにメール＋パスワードを設定して永続化（成功時 nil、失敗時エラー文）。
-    /// 「Confirm email」ON の場合は確認メール送信となり、確認リンクのタップで連携完了。
-    func linkAccount(email: String, password: String) async -> String? {
+    enum SignUpResult { case signedIn, needsConfirmation, failed(String) }
+
+    /// メールで新規登録（共通アカウント）。確認メールが要る設定では、リンクを押してからログイン。
+    func signUpAccount(email: String, password: String) async -> SignUpResult {
         do {
-            let active = try await SupabaseClient.shared.upgradeToEmail(email, password)
-            await refreshAccountState()
-            if active { await presentOnboardingIfNeeded() }
-            showToast(active ? "アカウントを連携しました（メールで復元できます）"
-                             : "確認メールを送信しました。メール内のリンクをタップすると連携完了です")
-            return nil
+            let active = try await SupabaseClient.shared.signUpWithEmail(email, password)
+            if active {
+                await refreshAccountState()
+                await mergeRemoteProgress()
+                await presentOnboardingIfNeeded()
+                showToast("登録しました")
+                return .signedIn
+            }
+            return .needsConfirmation
         } catch {
-            return "連携に失敗しました。メール形式・パスワード（6文字以上）をご確認ください。"
+            return .failed("登録できませんでした。メールの形式・パスワード（6文字以上）を確かめてください。すでに登録済みなら「ログイン」から入れます。")
         }
     }
 
@@ -1221,9 +1226,14 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    /// ログアウト（以後は匿名相当。ローカル進行は保持）。
+    /// ログアウト（端末の進行は残す）。自分の ID ですれちがいを名乗るのもやめる。
     func signOutAccount() async {
         await SupabaseClient.shared.signOut()
+        bleManager.stop()
+        nearbyStarted = false
+        nearbyUsers = []
+        friendList = []
+        profile = SupabaseClient.UserProfile()
         await refreshAccountState()
         showToast("ログアウトしました")
     }

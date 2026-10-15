@@ -24,7 +24,8 @@ struct FriendsView: View {
                     let n = t == .list ? vm.friendsOnly.count : vm.incomingRequests.count
                     return n > 0 ? "\(t.rawValue) \(n)" : t.rawValue
                 }
-                if tab == .list { friendList } else { requestList }
+                if vm.isGuestAccount { LoginRequiredCard() }
+                else if tab == .list { friendList } else { requestList }
             }
             .padding(.horizontal, 18).padding(.top, 12).padding(.bottom, 112)
         }
@@ -160,5 +161,31 @@ struct FriendsView: View {
         }
         .frame(maxWidth: .infinity).padding(.vertical, 28).padding(.horizontal, 20)
         .mlCard()
+    }
+}
+
+// MARK: - ログインしていないとき（フレンドはアカウントが要る）
+
+struct LoginRequiredCard: View {
+    @EnvironmentObject var vm: AppViewModel
+    @State private var showLogin = false
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(Color(hex: "B8ACD6"))
+            Text("フレンドにはログインが要ります").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+            Text("StyleCare と同じアカウント（共通アカウント）でログインすると、申請・承認ができます。")
+                .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A")).multilineTextAlignment(.center)
+            Button { showLogin = true } label: {
+                Text("ログイン / 新規登録").font(.system(size: 13, weight: .black)).foregroundStyle(.white)
+                    .padding(.horizontal, 18).padding(.vertical, 10)
+                    .background(Color(hex: "7248E0"), in: Capsule())
+            }
+            .buttonStyle(.plain).padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 26).padding(.horizontal, 20)
+        .mlCard()
+        .sheet(isPresented: $showLogin) { AccountLinkView().environmentObject(vm) }
     }
 }

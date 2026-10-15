@@ -7,23 +7,29 @@ import CryptoKit
 // Supabase Auth（GoTrue）でサインインして JWT を得て、以後 per-user データを
 // Supabase（PostgREST）に直接読み書きするための最小クライアント（REST・URLSession ベース）。
 //
-// - 匿名サインイン: 端末＝1ユーザー（要ダッシュボードで Anonymous sign-ins ON）。
-// - アカウント連携: 匿名ユーザーにメール＋パスワードを設定して永続化（再インストール跨ぎの復元）。
-// 失敗（匿名無効・通信不可など）してもアプリは seed のまま動作する。
+// - 接続先は StyleCare のプロジェクト（共通アカウント。2026-10-15 に MelodyLien から移った）。
+//   StreetMelody のデータは `streetmelody` スキーマ、名前・ユーザーID・ひとことは
+//   共通の `public.profiles`（ID の変更は public.change_handle）。
+// - 匿名ログインは使わない（エコシステムの約束。プロジェクト側でも止めてある）。
+//   ログインしていないあいだは、アプリは端末の中のデータだけで動く。
 
 actor SupabaseClient {
     static let shared = SupabaseClient()
 
     // 公開（publishable / anon）キー。秘密ではない。
-    nonisolated let baseURL = "https://wngtvdgzzlkajtbwsurc.supabase.co"
-    nonisolated let anonKey = "sb_publishable_oR41TcNHu-G9La0JHrnmWg_P8SfRts5"
+    nonisolated let baseURL = "https://oaurexinrtvzvtvotqaw.supabase.co"
+    nonisolated let anonKey = "sb_publishable_JuWP6MzIP_zeWDGsoQLwAA_flKbS71V"
+
+    /// StreetMelody のデータを置くスキーマ（共通の名前・ID は public）
+    nonisolated static let appSchema = "streetmelody"
 
     private let session: URLSession
-    private let sessionKey = "streetmelody.supabase.session.v1"
+    // 旧プロジェクトのセッションは新しいプロジェクトでは使えないので、保存場所ごと分ける
+    private let sessionKey = "streetmelody.supabase.session.v2-common"
 
     private(set) var userId: String?
     private(set) var email: String?
-    private(set) var isAnonymous: Bool = true
+    private(set) var isAnonymous: Bool = false
     private var accessToken: String?
     private var refreshToken: String?
 
@@ -71,18 +77,14 @@ actor SupabaseClient {
 
     // MARK: Bootstrap / sign-in
 
-    /// 起動時に呼ぶ。保存済みセッションがあれば更新トークンで復帰、無ければ匿名サインイン。
+    /// 起動時に呼ぶ。保存済みセッションがあれば更新トークンで復帰する。
+    /// 無ければ未ログインのまま（匿名ログインはしない）。
     func bootstrap() async {
-        if let saved = loadSaved() {
-            if (try? await refresh(saved.refreshToken)) != nil { return }
+        guard let saved = loadSaved() else { return }
+        if (try? await refresh(saved.refreshToken)) == nil {
+            // 期限切れ・取り消し済み。未ログインに戻す
+            signOut()
         }
-        try? await signInAnonymously()
-    }
-
-    @discardableResult
-    func signInAnonymously() async throws -> String {
-        let data = try await authRequest(method: "POST", path: "/auth/v1/signup", body: Data("{}".utf8))
-        return try apply(data)
     }
 
     /// メール＋パスワードでサインイン（別端末・再インストール後の復元に使う）。
@@ -93,24 +95,22 @@ actor SupabaseClient {
         return try apply(data)
     }
 
-    /// 現在の（匿名）ユーザーにメール＋パスワードを設定して永続アカウント化。
-    /// 戻り値: メールが即時有効になったか（true=「Confirm email」OFF等で即連携、false=確認メール送信・確認待ち）。
+    /// メールで新規登録（共通アカウント）。
+    /// 戻り値: すぐログインできたか（false＝確認メールを送った。リンクを押してからログイン）。
     @discardableResult
-    func upgradeToEmail(_ email: String, _ password: String) async throws -> Bool {
-        guard let token = accessToken else { throw AuthError.notSignedIn }
+    func signUpWithEmail(_ email: String, _ password: String) async throws -> Bool {
         let body = try JSONSerialization.data(withJSONObject: ["email": email, "password": password])
-        let data = try await authRequest(method: "PUT", path: "/auth/v1/user", body: body, bearer: token)
-        if let u = try? JSONDecoder().decode(AuthUser.self, from: data) {
-            let active = (u.email?.isEmpty == false)   // 確認待ちのときは email が空/未設定
-            self.email = active ? u.email : nil
-            self.isAnonymous = u.is_anonymous ?? self.isAnonymous
-            return active
+        let data = try await authRequest(method: "POST", path: "/auth/v1/signup", body: body)
+        // 確認メールが要る設定では、セッションは返らずユーザーだけが返る
+        if (try? JSONDecoder().decode(AuthSession.self, from: data)) != nil {
+            try apply(data)
+            return true
         }
         return false
     }
 
     func signOut() {
-        accessToken = nil; refreshToken = nil; userId = nil; email = nil; isAnonymous = true
+        accessToken = nil; refreshToken = nil; userId = nil; email = nil; isAnonymous = false
         UserDefaults.standard.removeObject(forKey: sessionKey)
     }
 
@@ -139,15 +139,13 @@ actor SupabaseClient {
         }
         // 昇格: 認可URL取得には Bearer が要る（ブラウザはヘッダ送れない）→ アプリ側で取得して URL を得る
         let linkItems = items + [URLQueryItem(name: "skip_http_redirect", value: "true")]
-        // 有効なセッションが無ければ匿名サインイン
-        if accessToken == nil { try? await signInAnonymously() }
-        guard let token = accessToken else { throw OAuthError.message("サインインできませんでした（通信をご確認ください）") }
+        // ログイン済みのアカウントに別のログイン手段を足すときだけ使う（匿名ログインはしない）
+        guard let token = accessToken else { throw OAuthError.message("先にログインしてください") }
 
         var (status, data) = try await linkAuthorizeFetch(items: linkItems, token: token)
-        // 古い/無効なセッション(401/403)なら匿名サインインし直して1回だけ再試行（自己回復）
-        if status == 401 || status == 403 {
-            try? await signInAnonymously()
-            if let t2 = accessToken { (status, data) = try await linkAuthorizeFetch(items: linkItems, token: t2) }
+        // 鍵が古ければ1回だけ取り直して再試行
+        if status == 401 || status == 403, let rt = refreshToken, (try? await refresh(rt)) != nil, let t2 = accessToken {
+            (status, data) = try await linkAuthorizeFetch(items: linkItems, token: t2)
         }
         guard (200..<300).contains(status) else {
             throw OAuthError.message("認可URL取得失敗(HTTP \(status)): \(String(data: data, encoding: .utf8)?.prefix(140) ?? "")")
@@ -306,18 +304,31 @@ actor SupabaseClient {
     // MARK: PostgREST helper（per-user 読み書き）
 
     /// 認証済みトークンで PostgREST にリクエスト。未サインイン時は nil。
-    func rest(method: String, query: String, body: Data? = nil, prefer: String? = nil) async throws -> Data? {
-        guard let token = accessToken else { return nil }
+    /// schema は既定で streetmelody。共通の名前・ID（public.profiles と public の関数）は "public"。
+    /// ログインの鍵（1時間で切れる）が切れていたら、1回だけ取り直してやり直す。
+    func rest(method: String, query: String, body: Data? = nil, prefer: String? = nil,
+              schema: String = SupabaseClient.appSchema) async throws -> Data? {
+        guard accessToken != nil else { return nil }
         guard let url = URL(string: baseURL + "/rest/v1/" + query) else { throw APIError.invalidURL }
-        var req = URLRequest(url: url)
-        req.httpMethod = method
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue(anonKey, forHTTPHeaderField: "apikey")
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        if let prefer { req.setValue(prefer, forHTTPHeaderField: "Prefer") }
-        req.httpBody = body
-        let (data, resp) = try await dataWithRetry(req)
-        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+        func send() async throws -> (Data, HTTPURLResponse?) {
+            var req = URLRequest(url: url)
+            req.httpMethod = method
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.setValue(anonKey, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+            // どのスキーマを読むか・書くか（PostgREST は読みと書きで見出しが違う）
+            req.setValue(schema, forHTTPHeaderField: "Accept-Profile")
+            req.setValue(schema, forHTTPHeaderField: "Content-Profile")
+            if let prefer { req.setValue(prefer, forHTTPHeaderField: "Prefer") }
+            req.httpBody = body
+            let (data, resp) = try await dataWithRetry(req)
+            return (data, resp as? HTTPURLResponse)
+        }
+        var (data, http) = try await send()
+        if http?.statusCode == 401, let rt = refreshToken, (try? await refresh(rt)) != nil {
+            (data, http) = try await send()
+        }
+        if let http, !(200..<300).contains(http.statusCode) {
             throw APIError.httpError(http.statusCode)
         }
         return data
@@ -358,7 +369,7 @@ actor SupabaseClient {
            let rows = try? JSONDecoder().decode([CoinRow].self, from: d), let c = rows.first?.coins {
             s.coins = c
         }
-        if let d = (try? await rest(method: "GET", query: "friendships?select=friend_name,location_label,exchange_count")) ?? nil,
+        if let d = (try? await rest(method: "GET", query: "exchange_history?select=friend_name,location_label,exchange_count")) ?? nil,
            let rows = try? JSONDecoder().decode([FriendRow].self, from: d) {
             s.friends = rows.map { RemoteFriend(name: $0.friend_name, location: $0.location_label ?? "", exchangeCount: $0.exchange_count) }
         }
@@ -390,16 +401,16 @@ actor SupabaseClient {
     /// 自分の profiles.coins を更新（profiles 行は signup トリガーで自動生成済み）。
     func updateCoins(_ coins: Int) async {
         guard let uid = userId else { return }
-        let body = try? JSONSerialization.data(withJSONObject: ["coins": coins])
-        _ = try? await rest(method: "PATCH", query: "profiles?user_id=eq.\(uid)",
-                            body: body, prefer: "return=minimal")
+        let body = try? JSONSerialization.data(withJSONObject: [["user_id": uid, "coins": coins]])
+        _ = try? await rest(method: "POST", query: "profiles?on_conflict=user_id",
+                            body: body, prefer: "resolution=merge-duplicates,return=minimal")
     }
 
     func upsertFriend(name: String, location: String, exchangeCount: Int) async {
         guard let uid = userId else { return }
         let row: [String: Any] = ["user_id": uid, "friend_name": name, "location_label": location, "exchange_count": exchangeCount]
         let body = try? JSONSerialization.data(withJSONObject: [row])
-        _ = try? await rest(method: "POST", query: "friendships?on_conflict=user_id,friend_name",
+        _ = try? await rest(method: "POST", query: "exchange_history?on_conflict=user_id,friend_name",
                             body: body, prefer: "resolution=merge-duplicates,return=minimal")
     }
 
@@ -481,7 +492,7 @@ actor SupabaseClient {
             "friend_name": name.isEmpty ? "フレンド(\(code.suffix(4)))" : name,
         ]
         let body = try JSONSerialization.data(withJSONObject: [row])
-        _ = try await rest(method: "POST", query: "friendships?on_conflict=user_id,friend_name",
+        _ = try await rest(method: "POST", query: "exchange_history?on_conflict=user_id,friend_name",
                            body: body, prefer: "resolution=merge-duplicates,return=minimal")
     }
 
@@ -489,6 +500,10 @@ actor SupabaseClient {
     func myFriendCode() -> String? { userId }
 
     // MARK: プロフィール
+    //
+    // 名前・ユーザーID・ひとことは共通アカウントの public.profiles（StyleCare などと同じもの）。
+    // ここを変えると、他のアプリでも同じ名前・IDになる。
+    // 好きなアーティスト・曲、誕生日などは StreetMelody だけのもの（streetmelody.profiles）。
 
     struct UserProfile: Codable, Sendable, Equatable {
         var handle: String?
@@ -500,49 +515,74 @@ actor SupabaseClient {
         var gender: String?        // "male"|"female"|"other"|"na"
         var visibility: [String: String] = [:]   // 項目→スコープ
     }
-    private struct ProfileRow: Decodable {
+    private struct CommonProfileRow: Decodable {
         let handle: String?; let display_name: String?; let bio: String?
+    }
+    private struct AppProfileRow: Decodable {
         let favorite_artist_ids: [String]?; let favorite_track_ids: [String]?
         let birthday: String?; let gender: String?; let profile_visibility: [String: String]?
     }
+    private struct HandleResult: Decodable { let ok: Bool; let error: String? }
 
-    /// 自分のプロフィールを取得。
+    /// 自分のプロフィールを取得（共通の名前・ID ＋ StreetMelody 固有の項目）。
     func fetchMyProfile() async -> UserProfile? {
         guard let uid = userId else { return nil }
-        let cols = "handle,display_name,bio,favorite_artist_ids,favorite_track_ids,birthday,gender,profile_visibility"
-        guard let d = (try? await rest(method: "GET", query: "profiles?user_id=eq.\(uid)&select=\(cols)")) ?? nil,
-              let rows = try? JSONDecoder().decode([ProfileRow].self, from: d), let r = rows.first else { return nil }
-        return UserProfile(handle: r.handle, displayName: r.display_name, bio: r.bio,
-                           favoriteArtistIds: r.favorite_artist_ids ?? [], favoriteTrackIds: r.favorite_track_ids ?? [],
-                           birthday: r.birthday, gender: r.gender, visibility: r.profile_visibility ?? [:])
+        guard let d = (try? await rest(method: "GET", query: "profiles?id=eq.\(uid)&select=handle,display_name,bio",
+                                       schema: "public")) ?? nil,
+              let common = (try? JSONDecoder().decode([CommonProfileRow].self, from: d))?.first else { return nil }
+        var p = UserProfile(handle: common.handle, displayName: common.display_name, bio: common.bio)
+        let cols = "favorite_artist_ids,favorite_track_ids,birthday,gender,profile_visibility"
+        if let ad = (try? await rest(method: "GET", query: "profiles?user_id=eq.\(uid)&select=\(cols)")) ?? nil,
+           let app = (try? JSONDecoder().decode([AppProfileRow].self, from: ad))?.first {
+            p.favoriteArtistIds = app.favorite_artist_ids ?? []
+            p.favoriteTrackIds = app.favorite_track_ids ?? []
+            p.birthday = app.birthday
+            p.gender = app.gender
+            p.visibility = app.profile_visibility ?? [:]
+        }
+        return p
     }
 
-    /// 自分のプロフィールを更新。handle 重複は 409 → わかりやすいメッセージに。
+    /// 自分のプロフィールを更新。ID は public.change_handle（変更の間隔・重複・最近手放されたIDを見る）。
     func updateMyProfile(_ p: UserProfile) async throws {
         guard let uid = userId else { throw AuthError.notSignedIn }
-        var obj: [String: Any] = [
+
+        // ① ユーザーID（変わったときだけ）
+        let current = await fetchMyProfile()?.handle
+        if let h = p.handle?.trimmingCharacters(in: .whitespaces), !h.isEmpty,
+           h.lowercased() != (current ?? "").lowercased() {
+            let body = try JSONSerialization.data(withJSONObject: ["new_handle": h])
+            guard let d = try await rest(method: "POST", query: "rpc/change_handle", body: body, schema: "public"),
+                  let r = try? JSONDecoder().decode(HandleResult.self, from: d) else {
+                throw OAuthError.message("ユーザーIDを変更できませんでした")
+            }
+            if !r.ok { throw OAuthError.message(r.error ?? "ユーザーIDを変更できませんでした") }
+        }
+
+        // ② 名前・ひとこと（共通）
+        let common: [String: Any] = ["display_name": p.displayName ?? NSNull(), "bio": p.bio ?? NSNull()]
+        _ = try await rest(method: "PATCH", query: "profiles?id=eq.\(uid)",
+                           body: try JSONSerialization.data(withJSONObject: common),
+                           prefer: "return=minimal", schema: "public")
+
+        // ③ StreetMelody だけの項目（行が無ければ作る）
+        let app: [String: Any] = [
+            "user_id": uid,
             "favorite_artist_ids": p.favoriteArtistIds,
             "favorite_track_ids": p.favoriteTrackIds,
             "profile_visibility": p.visibility,
-            "handle": p.handle ?? NSNull(),
-            "display_name": p.displayName ?? NSNull(),
-            "bio": p.bio ?? NSNull(),
             "birthday": p.birthday ?? NSNull(),
             "gender": p.gender ?? NSNull(),
         ]
-        obj["updated_at"] = Self.isoFractional.string(from: Date())
-        let body = try JSONSerialization.data(withJSONObject: obj)
-        do {
-            _ = try await rest(method: "PATCH", query: "profiles?user_id=eq.\(uid)", body: body, prefer: "return=minimal")
-        } catch APIError.httpError(let code) where code == 409 {
-            throw OAuthError.message("そのユーザーIDは既に使われています")
-        }
+        _ = try await rest(method: "POST", query: "profiles?on_conflict=user_id",
+                           body: try JSONSerialization.data(withJSONObject: [app]),
+                           prefer: "resolution=merge-duplicates,return=minimal")
     }
 
-    /// handle の空き確認（RPC）。
+    /// ユーザーIDの空き確認（共通の public.is_handle_available）。
     func checkHandleAvailable(_ handle: String) async -> Bool {
-        let body = try? JSONSerialization.data(withJSONObject: ["p_handle": handle])
-        guard let d = (try? await rest(method: "POST", query: "rpc/check_handle_available", body: body)) ?? nil,
+        let body = try? JSONSerialization.data(withJSONObject: ["h": handle])
+        guard let d = (try? await rest(method: "POST", query: "rpc/is_handle_available", body: body, schema: "public")) ?? nil,
               let ok = try? JSONDecoder().decode(Bool.self, from: d) else { return false }
         return ok
     }
@@ -557,6 +597,7 @@ actor SupabaseClient {
         let userId: String
         let handle: String?
         let displayName: String?
+        var avatarURL: String? = nil
         var name: String { displayName ?? handle.map { "@\($0)" } ?? "ユーザー(\(userId.suffix(4)))" }
     }
 
@@ -574,7 +615,7 @@ actor SupabaseClient {
 
     private struct LinkRow: Decodable { let requester: String; let addressee: String; let status: String; let accepted_at: String? }
     private struct BestRow: Decodable { let friend_id: String }
-    private struct NameRow: Decodable { let user_id: String; let handle: String?; let display_name: String? }
+    private struct NameRow: Decodable { let id: String; let handle: String?; let display_name: String?; let avatar_url: String? }
 
     /// 自分が関わる申請・フレンドを、相手ごとにまとめて返す。
     func fetchFriends() async -> [FriendUser] {
@@ -604,21 +645,24 @@ actor SupabaseClient {
     /// 表示名とIDをまとめて引く（関係を問わず見せてよいのはこの2つだけ）。
     func displayNames(for ids: [String]) async -> [String: PublicProfile] {
         let uniq = Array(Set(ids.map { $0.lowercased() }))
-        guard !uniq.isEmpty, let body = try? JSONSerialization.data(withJSONObject: ["p_ids": uniq]),
-              let d = (try? await rest(method: "POST", query: "rpc/get_display_names", body: body)) ?? nil,
+        guard !uniq.isEmpty, let body = try? JSONSerialization.data(withJSONObject: ["ids": uniq]),
+              let d = (try? await rest(method: "POST", query: "rpc/get_display_names", body: body, schema: "public")) ?? nil,
               let rows = try? JSONDecoder().decode([NameRow].self, from: d) else { return [:] }
         var out: [String: PublicProfile] = [:]
-        for r in rows { out[r.user_id.lowercased()] = PublicProfile(userId: r.user_id, handle: r.handle, displayName: r.display_name) }
+        for r in rows {
+            out[r.id.lowercased()] = PublicProfile(userId: r.id, handle: r.handle, displayName: r.display_name, avatarURL: r.avatar_url)
+        }
         return out
     }
 
     /// ユーザーID（handle）で人を探す。
     func findUser(handle: String) async -> PublicProfile? {
         let h = handle.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "@"))
-        guard !h.isEmpty, let body = try? JSONSerialization.data(withJSONObject: ["p_handle": h]),
-              let d = (try? await rest(method: "POST", query: "rpc/find_user_by_handle", body: body)) ?? nil,
-              let r = (try? JSONDecoder().decode([NameRow].self, from: d))?.first else { return nil }
-        return PublicProfile(userId: r.user_id, handle: r.handle, displayName: r.display_name)
+        struct FoundRow: Decodable { let id: String; let handle: String?; let display_name: String? }
+        guard !h.isEmpty, let body = try? JSONSerialization.data(withJSONObject: ["h": h]),
+              let d = (try? await rest(method: "POST", query: "rpc/find_user_by_handle", body: body, schema: "public")) ?? nil,
+              let r = (try? JSONDecoder().decode([FoundRow].self, from: d))?.first else { return nil }
+        return PublicProfile(userId: r.id, handle: r.handle, displayName: r.display_name)
     }
 
     /// 申請を送る。相手からも申請が来ていれば、その場でフレンドになる（サーバー側）。

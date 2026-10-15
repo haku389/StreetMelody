@@ -58,6 +58,17 @@ final class BLEManager: NSObject, ObservableObject {
                                           options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
     }
 
+    /// すれちがいをやめる（ログアウト時）。名乗るのも探すのも止める。
+    func stop() {
+        stopScan()
+        if peripheralManager.state == .poweredOn {
+            peripheralManager.stopAdvertising()
+            peripheralManager.removeAllServices()
+        }
+        myUserId = nil
+        nearbyUsers = []
+    }
+
     func stopScan() {
         if centralManager.state == .poweredOn { centralManager.stopScan() }
         isScanning = false

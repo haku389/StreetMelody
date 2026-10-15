@@ -19,7 +19,8 @@ struct FriendAddView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                MLSectionTitle(text: "自分の情報").padding(.top, -10)
+                if vm.isGuestAccount { LoginRequiredCard().padding(.top, 4) }
+                MLSectionTitle(text: "自分の情報").padding(.top, vm.isGuestAccount ? 0 : -10)
                 myCard
                 MLSectionTitle(text: "ユーザーIDで申請")
                 searchCard

@@ -219,16 +219,16 @@ struct MyPageView: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(vm.isGuestAccount ? Color(hex: "7B6F8A") : Color(hex: "1A9E6E")))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(vm.isGuestAccount ? "ゲストアカウント" : "連携済み")
+                    Text(vm.isGuestAccount ? "ログインしていません" : "ログイン中")
                         .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
-                    Text(vm.isGuestAccount ? "この端末のみ · 連携で機種変更に対応"
-                                           : (vm.accountEmail ?? "メール連携済み"))
+                    Text(vm.isGuestAccount ? "端末の中だけで動いています · ログインでフレンド・機種変更に対応"
+                                           : (vm.accountEmail ?? "共通アカウント"))
                         .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
                 }
             }
             if vm.isGuestAccount {
                 Button { showAccountSheet = true } label: {
-                    Text("アカウントを連携 / ログイン").buttonLabel(.primary)
+                    Text("ログイン / 新規登録").buttonLabel(.primary)
                 }
             } else {
                 Button { Task { await vm.signOutAccount() } } label: {
