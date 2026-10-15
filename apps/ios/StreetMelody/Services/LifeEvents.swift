@@ -30,12 +30,17 @@ final class LifeEvents {
     struct Pending: Codable, Equatable, Sendable {
         /// 端末の控えの id。中継の返りを突き合わせるためだけに使う
         let id: String
+        /// **誰のすれちがいか**（小文字の user_id）。送るのは、いまログインしている
+        /// 人が持ち主のものだけ。ほかの人のものは消さずに残し、その人が入ったときに送る
+        let ownerUserID: String
         let otherUserID: String
         /// 受け取った瞬間（届いた時刻ではない。日付をずらさないため）
         let at: Date
     }
 
-    private let key = "streetmelody.lifeEvents.pending.v1"
+    /// v1 は持ち主を持たなかった（まだ誰にも出していないので、移し替えずに捨てる）
+    private let key = "streetmelody.lifeEvents.pending.v2"
+    private let oldKeys = ["streetmelody.lifeEvents.pending.v1"]
     private let defaults: UserDefaults
     private var flushing = false
 
@@ -46,6 +51,7 @@ final class LifeEvents {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        for k in oldKeys { defaults.removeObject(forKey: k) }
         // 前面に来るたびに流す。ContentView / AppViewModel を触らずに済むよう、ここで聞く
         // （BLEManager.start が最初に shared に触るので、ログイン後から効く）
         NotificationCenter.default.addObserver(
@@ -58,10 +64,12 @@ final class LifeEvents {
     /// 溜まっている数（画面に出すなら）
     var pendingCount: Int { load().count }
 
-    /// すれちがいを受け取った。**同じ相手でも何度呼んでもよい**（1件にまとまる）
-    func encountered(otherUserID: String, at: Date = Date()) {
+    /// すれちがいを受け取った。**同じ相手でも何度呼んでもよい**（1件にまとまる）。
+    /// ownerUserID は、すれちがいを受け取った時点でログインしていた自分
+    func encountered(otherUserID: String, ownerUserID: String, at: Date = Date()) {
         var items = load()
-        items.append(Pending(id: UUID().uuidString, otherUserID: otherUserID, at: at))
+        items.append(Pending(id: UUID().uuidString, ownerUserID: ownerUserID.lowercased(),
+                             otherUserID: otherUserID.lowercased(), at: at))
         save(items)
         Task { await flush() }
     }
@@ -72,21 +80,24 @@ final class LifeEvents {
         flushing = true
         defer { flushing = false }
 
-        // 古すぎる控えは、送っても DB が断るだけなので捨てる
+        // 古すぎる控えは、送っても DB が断るだけなので捨てる（持ち主に関わらず）
         let now = Date()
-        var items = load().filter { now.timeIntervalSince($0.at) < keepFor }
-        save(items)
+        save(load().filter { now.timeIntervalSince($0.at) < keepFor })
+
+        // **いまログインしている人のぶんだけ**送る。未ログインなら何もしない
+        guard let me = await SupabaseClient.shared.userId?.lowercased() else { return }
+        var mine = load().filter { $0.ownerUserID == me }
 
         // 空でも1回は送る。DB に溜まってハブへ流れていないぶんを、中継が流す
         repeat {
-            let chunk = Array(items.prefix(batch))
-            guard let done = await send(chunk) else { return }   // 圏外・未ログイン → 残す
-            items = load().filter { !done.contains($0.id) }
-            save(items)
+            let chunk = Array(mine.prefix(batch))
+            guard let done = await send(chunk, as: me) else { return }   // 圏外・人が替わった → 残す
+            save(load().filter { !done.contains($0.id) })
+            mine = load().filter { $0.ownerUserID == me }
             // 1件も片付かなかったら止める。同じ束を送り続けないため
             // （返りの数が合わないとき、中継はどれも accepted にしない）
             if chunk.count < batch || (done.isEmpty && !chunk.isEmpty) { return }
-        } while !items.isEmpty
+        } while !mine.isEmpty
     }
 
     // MARK: -
@@ -104,14 +115,15 @@ final class LifeEvents {
 
     /// 送って、控えから消してよい id（入った・送り直しても通らない）を返す。
     /// nil は「答えが聞けなかった／まだ送れない」。控えはそのまま残す
-    private func send(_ chunk: [Pending]) async -> Set<String>? {
+    private func send(_ chunk: [Pending], as me: String) async -> Set<String>? {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let body = Body(encounters: chunk.map {
             .init(id: $0.id, other_user_id: $0.otherUserID, occurred_at: f.string(from: $0.at))
         })
         guard let data = try? JSONEncoder().encode(body),
-              let (out, status) = try? await SupabaseClient.shared.relayPOST(Self.relayURL, body: data),
+              // 送る直前にも持ち主を確かめる（確かめてから送るまでに人が替わらないよう、actor の中で）
+              let (out, status) = try? await SupabaseClient.shared.relayPOST(Self.relayURL, body: data, asUser: me),
               (200..<300).contains(status),
               let reply = try? JSONDecoder().decode(Reply.self, from: out)
         else { return nil }

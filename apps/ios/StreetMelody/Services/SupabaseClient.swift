@@ -379,8 +379,15 @@ actor SupabaseClient {
     /// 中継はこのトークンを Supabase に確かめさせて、user_id をそこから取る
     /// （本文の user_id は信用しない。life-os-api/docs/contract.md §3）。
     /// ログインの鍵（1時間で切れる）が切れていたら、1回だけ取り直してやり直す（rest() と同じ）
-    func relayPOST(_ url: URL, body: Data) async throws -> (Data, Int) {
+    ///
+    /// `asUser` を渡すと、**いまログインしている人がその人のときだけ**送る。
+    /// 中継はトークンの本人として受け取るので、ログアウトして別の人が入った端末で
+    /// 前の人の控えを送ると、次の人の人生の記録に入って直せなくなる
+    func relayPOST(_ url: URL, body: Data, asUser expected: String? = nil) async throws -> (Data, Int) {
         guard accessToken != nil else { throw APIError.httpError(401) }
+        if let expected, userId?.lowercased() != expected.lowercased() {
+            throw APIError.httpError(403)
+        }
         func send() async throws -> (Data, Int) {
             var req = URLRequest(url: url)
             req.httpMethod = "POST"

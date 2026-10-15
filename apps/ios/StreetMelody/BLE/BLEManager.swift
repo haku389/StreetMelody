@@ -117,7 +117,11 @@ final class BLEManager: NSObject, ObservableObject {
         // **数えてよいのは BLE の口だけ。** アプリ内の「メロディ」のすれちがいは
         // seed の架空の人なので送らない
         let other = userId.lowercased()
-        Task { @MainActor in LifeEvents.shared.encountered(otherUserID: other) }
+        // **持ち主も渡す。** ログアウトして別の人が入ったときに、前の人の控えを
+        // 次の人の名前で送らないため（StreetMelody の担当セッションの指摘）
+        if let owner = myUserId?.lowercased() {
+            Task { @MainActor in LifeEvents.shared.encountered(otherUserID: other, ownerUserID: owner) }
+        }
         onNewNearby?(user)
     }
 }
