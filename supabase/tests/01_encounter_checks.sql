@@ -146,8 +146,14 @@ select pg_temp.expect(
   'anon に表の権限が付いている');
 select pg_temp.expect(
   (select relrowsecurity from pg_class where oid = 'streetmelody.encounter_days'::regclass)
-  and not exists (select 1 from pg_policies where schemaname = 'streetmelody' and tablename = 'encounter_days'),
-  'RLS が無効か、ポリシーが足されている');
+  and not exists (select 1 from pg_policies where schemaname = 'streetmelody' and tablename = 'encounter_days'
+                   and permissive = 'PERMISSIVE'),
+  'RLS が無効か、許可のポリシーが足されている');
+-- 制限の no_anon は付いている（20261015180000。ほかの表と同じ流儀）
+select pg_temp.expect(
+  exists (select 1 from pg_policies where schemaname = 'streetmelody' and tablename = 'encounter_days'
+           and policyname = 'no_anon' and permissive = 'RESTRICTIVE'),
+  'encounter_days に制限の no_anon が無い');
 do $$
 declare f text;
 begin

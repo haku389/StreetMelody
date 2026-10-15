@@ -372,6 +372,31 @@ actor SupabaseClient {
         return data
     }
 
+    // MARK: 中継（workers/、streetmelody-relay）
+
+    /// 自前の中継へ、本人のトークンで POST する。未サインイン時は投げる。
+    ///
+    /// 中継はこのトークンを Supabase に確かめさせて、user_id をそこから取る
+    /// （本文の user_id は信用しない。life-os-api/docs/contract.md §3）。
+    /// ログインの鍵（1時間で切れる）が切れていたら、1回だけ取り直してやり直す（rest() と同じ）
+    func relayPOST(_ url: URL, body: Data) async throws -> (Data, Int) {
+        guard accessToken != nil else { throw APIError.httpError(401) }
+        func send() async throws -> (Data, Int) {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.setValue("Bearer \(accessToken ?? "")", forHTTPHeaderField: "Authorization")
+            req.httpBody = body
+            let (data, resp) = try await dataWithRetry(req)
+            return (data, (resp as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        var (data, status) = try await send()
+        if status == 401, let rt = refreshToken, (try? await refresh(rt)) != nil {
+            (data, status) = try await send()
+        }
+        return (data, status)
+    }
+
     // MARK: per-user 状態（方式A）
 
     struct RemoteFriend: Sendable { let name: String; let location: String; let exchangeCount: Int }

@@ -25,6 +25,12 @@ create or replace function auth.uid() returns uuid language sql stable as $$
 $$;
 grant execute on function auth.jwt(), auth.uid() to anon, authenticated, service_role;
 
+-- 本番の public.is_anon() の写し（2026-10-15 に本番の定義を読んで写した）
+create or replace function public.is_anon() returns boolean language sql stable set search_path = '' as $$
+  select coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false);
+$$;
+grant execute on function public.is_anon() to authenticated;
+
 -- 20261015130000_streetmelody_schema.sql の冒頭と同じ
 create schema if not exists streetmelody;
 grant usage on schema streetmelody to authenticated, service_role;

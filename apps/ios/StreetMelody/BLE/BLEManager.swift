@@ -49,6 +49,9 @@ final class BLEManager: NSObject, ObservableObject {
         myUserId = userId
         startAdvertisingIfReady()
         startScan()
+        // ログインして動き始めたら、溜まっているすれちがいを人生の記録へ流す
+        // （前面に来るたびにも LifeEvents 自身が流す）
+        Task { @MainActor in await LifeEvents.shared.flush() }
     }
 
     func startScan() {
@@ -109,6 +112,12 @@ final class BLEManager: NSObject, ObservableObject {
         let user = NearbyUser(id: userId, userId: userId, rssi: rssi, detectedAt: Date())
         nearbyUsers.removeAll { $0.userId == userId }
         nearbyUsers.insert(user, at: 0)
+        // 人生の記録（共通ハブ）へ。自分を除く・6時間の間隔・1時間10人の上限を
+        // 通った本物の相手だけがここに来る。同じ人と同じ日は DB が1件にまとめる。
+        // **数えてよいのは BLE の口だけ。** アプリ内の「メロディ」のすれちがいは
+        // seed の架空の人なので送らない
+        let other = userId.lowercased()
+        Task { @MainActor in LifeEvents.shared.encountered(otherUserID: other) }
         onNewNearby?(user)
     }
 }

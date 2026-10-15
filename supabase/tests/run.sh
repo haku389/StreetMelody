@@ -34,6 +34,7 @@ run_all() {
   createdb -p "$PORT" "$DB"
   psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -f tests/00_stub.sql >/dev/null
   psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -f migrations/20261015170000_encounter_outbox.sql >/dev/null
+  psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -f migrations/20261015180000_encounter_days_no_anon.sql >/dev/null
   if [ -n "${MUTATION:-}" ]; then
     psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -c "$MUTATION" >/dev/null
   fi
@@ -52,6 +53,8 @@ F="streetmelody.put_encounters(jsonb)"
 MUTATIONS=(
   "表を authenticated に読ませる|grant select on streetmelody.encounter_days to authenticated;"
   "表へ直接書かせる|grant insert on streetmelody.encounter_days to authenticated;"
+  "匿名の制限ポリシーを外す|drop policy no_anon on streetmelody.encounter_days;"
+  "許可のポリシーを足す|create policy leak on streetmelody.encounter_days for select to authenticated using (true);"
   "anon に呼ばせる|grant execute on function $F to anon;"
   "未送信で他人の行も返す|create or replace function streetmelody.my_unsent_encounters(p_limit integer default 200) returns table (other_hash text, occurred_on date, occurred_at timestamptz, attempts integer) language sql stable security definer set search_path = '' as \$f\$ select d.other_hash, d.occurred_on, d.occurred_at, d.attempts from streetmelody.encounter_days d where d.sent_at is null and d.attempts < 5 order by d.occurred_at limit 500 \$f\$;"
   "他人の行に印を付けられる|create or replace function streetmelody.mark_my_encounters_sent(p_items jsonb, p_result jsonb default null) returns integer language plpgsql security definer set search_path = '' as \$f\$ declare n integer; begin update streetmelody.encounter_days d set sent_at = clock_timestamp(), hub_result = p_result from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as i(other_hash text, occurred_on date) where d.other_hash = i.other_hash and d.occurred_on = i.occurred_on and d.sent_at is null; get diagnostics n = row_count; return n; end; \$f\$;"
