@@ -1168,6 +1168,30 @@ final class AppViewModel: ObservableObject {
 
     enum SignUpResult { case signedIn, needsConfirmation, failed(String) }
 
+    // MARK: ログイン方法（いまのアカウントに Spotify などを足す）
+
+    @Published var linkedProviders: [String] = []      // いまのアカウントで使える方法
+    @Published var availableProviders: [String] = []   // 共通プロジェクトで有効な方法
+
+    func loadLoginMethods() async {
+        guard !isGuestAccount else { linkedProviders = []; return }
+        async let linked = SupabaseClient.shared.linkedProviders()
+        async let enabled = SupabaseClient.shared.enabledProviders()
+        linkedProviders = await linked
+        availableProviders = Array(await enabled).sorted()
+    }
+
+    /// いまのアカウントにログイン方法を足す（進行・名前・ID はそのまま）。成功時 nil。
+    func linkLoginMethod(_ provider: String) async -> String? {
+        let name = provider == "spotify" ? "Spotify" : (provider == "google" ? "Google" : provider)
+        let err = await providerAuth(name, link: true) {
+            if provider == "spotify" { try await SupabaseAuthKit.signInWithSpotify(link: true) }
+            else { try await SupabaseAuthKit.signInWithGoogle(link: true) }
+        }
+        await loadLoginMethods()
+        return err
+    }
+
     /// メールで新規登録（共通アカウント）。確認メールが要る設定では、リンクを押してからログイン。
     func signUpAccount(email: String, password: String) async -> SignUpResult {
         do {
@@ -1218,9 +1242,15 @@ final class AppViewModel: ObservableObject {
             await refreshAccountState()
             await mergeRemoteProgress()
             await presentOnboardingIfNeeded()
-            showToast(link ? "\(name) と連携しました（進行はそのまま）" : "\(name) でログインしました")
+            showToast(link ? "\(name) でもログインできるようになりました" : "\(name) でログインしました")
             return nil
         } catch {
+            // ログイン画面を自分で閉じた（× を押した）ときは、技術的な文を出さない
+            let ns = error as NSError
+            if error is CancellationError
+                || (ns.domain == "com.apple.AuthenticationServices.WebAuthenticationSession" && ns.code == 1) {
+                return "キャンセルしました"
+            }
             if let m = (error as? SupabaseClient.OAuthError)?.errorDescription { return "\(name): \(m)" }
             return "\(name) \(link ? "連携" : "ログイン")に失敗しました（\(error.localizedDescription)）"
         }
@@ -1233,6 +1263,7 @@ final class AppViewModel: ObservableObject {
         nearbyStarted = false
         nearbyUsers = []
         friendList = []
+        linkedProviders = []
         profile = SupabaseClient.UserProfile()
         await refreshAccountState()
         showToast("ログアウトしました")

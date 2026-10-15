@@ -17,6 +17,7 @@ struct MyPageView: View {
     @State private var manualTitle = ""
     @State private var manualArtist = ""
     @State private var avatarItem: PhotosPickerItem?
+    @State private var linking: String?   // 連携中のログイン方法
 
     var body: some View {
         MLTabScreen {
@@ -210,6 +211,63 @@ struct MyPageView: View {
 
     // MARK: - アカウント
 
+    /// ログイン方法（メール・Google・Spotify）。足りないものは「追加」で、今のアカウントに足せる
+    private var loginMethods: some View {
+        let rows: [(id: String, name: String, service: String)] = [
+            ("email", "メール", ""), ("google", "Google（YouTube Music）", "youtubeMusic"), ("spotify", "Spotify", "spotify"),
+        ]
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("ログイン方法").font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7B6F8A"))
+                .padding(.bottom, 6)
+            ForEach(rows, id: \.id) { r in
+                let linked = vm.linkedProviders.contains(r.id)
+                let canAdd = !linked && r.id != "email" && vm.availableProviders.contains(r.id)
+                if linked || canAdd {
+                    HStack(spacing: 10) {
+                        if r.service.isEmpty {
+                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color(hex: "7B6F8A"))
+                                .frame(width: 24, height: 24)
+                                .overlay(Image(systemName: "envelope.fill").font(.system(size: 11, weight: .bold)).foregroundStyle(.white))
+                        } else {
+                            ServiceIcon(service: r.service, size: 24)
+                        }
+                        Text(r.name).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                        Spacer()
+                        if linked {
+                            Label("使えます", systemImage: "checkmark").font(.system(size: 11, weight: .black))
+                                .foregroundStyle(Color(hex: "1A9E6E"))
+                        } else {
+                            Button {
+                                linking = r.id
+                                Task {
+                                    if let err = await vm.linkLoginMethod(r.id) { vm.showToast(err) }
+                                    linking = nil
+                                }
+                            } label: {
+                                Group {
+                                    if linking == r.id { ProgressView().tint(.white) } else { Text("追加") }
+                                }
+                                .font(.system(size: 12, weight: .black)).foregroundStyle(.white)
+                                .frame(minWidth: 52).padding(.horizontal, 12).padding(.vertical, 7)
+                                .background(Color(hex: "7248E0"), in: Capsule())
+                                .mlGlow()
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(linking != nil)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+            }
+            Text("足しても名前・ID・進行はそのまま。どの方法でも同じアカウントに入れます。")
+                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B8ACD6"))
+                .padding(.top, 4)
+        }
+        .padding(12)
+        .mlInset(radius: 16)
+        .task(id: vm.isGuestAccount) { await vm.loadLoginMethods() }
+    }
+
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
@@ -232,6 +290,7 @@ struct MyPageView: View {
                     Text("ログイン / 新規登録").buttonLabel(.primary)
                 }
             } else {
+                loginMethods
                 Button { Task { await vm.signOutAccount() } } label: {
                     Text("ログアウト").buttonLabel(.secondary)
                 }

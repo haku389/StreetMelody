@@ -109,6 +109,24 @@ actor SupabaseClient {
         return false
     }
 
+    /// いまのアカウントで使えるログイン方法（"email" / "google" / "spotify" …）。
+    func linkedProviders() async -> [String] {
+        func fetch() async -> (Int, Data)? {
+            guard let token = accessToken, let url = URL(string: baseURL + "/auth/v1/user") else { return nil }
+            var req = URLRequest(url: url)
+            req.setValue(anonKey, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            guard let (data, resp) = try? await dataWithRetry(req) else { return nil }
+            return ((resp as? HTTPURLResponse)?.statusCode ?? 0, data)
+        }
+        var res = await fetch()
+        if res?.0 == 401, let rt = refreshToken, (try? await refresh(rt)) != nil { res = await fetch() }
+        struct U: Decodable { struct I: Decodable { let provider: String }; let identities: [I]? }
+        guard let (code, data) = res, (200..<300).contains(code),
+              let u = try? JSONDecoder().decode(U.self, from: data) else { return [] }
+        return Array(Set((u.identities ?? []).map(\.provider))).sorted()
+    }
+
     /// 共通アカウントのプロジェクトで有効なログイン方法（"google" / "spotify" など）。
     /// ログイン画面は、ここに入っているものだけを押せるようにする（無効なまま押して失敗しないように）。
     func enabledProviders() async -> Set<String> {
@@ -160,7 +178,11 @@ actor SupabaseClient {
             (status, data) = try await linkAuthorizeFetch(items: linkItems, token: t2)
         }
         guard (200..<300).contains(status) else {
-            throw OAuthError.message("認可URL取得失敗(HTTP \(status)): \(String(data: data, encoding: .utf8)?.prefix(140) ?? "")")
+            let body = String(data: data, encoding: .utf8) ?? ""
+            if body.contains("manual_linking_disabled") || body.lowercased().contains("manual linking") {
+                throw OAuthError.message("サーバーで「手動での連携」がオフです（Supabase → Authentication → Allow manual linking）")
+            }
+            throw OAuthError.message("連携を始められませんでした(HTTP \(status)): \(body.prefix(140))")
         }
         struct LinkURL: Decodable { let url: String }
         guard let lu = try? JSONDecoder().decode(LinkURL.self, from: data), let u = URL(string: lu.url) else {
@@ -195,6 +217,10 @@ actor SupabaseClient {
         if let frag = comps?.fragment, let fc = URLComponents(string: "?" + frag)?.queryItems { items += fc }
         if let errDesc = items.first(where: { $0.name == "error_description" })?.value
             ?? items.first(where: { $0.name == "error" })?.value {
+            if errDesc.lowercased().contains("already") && errDesc.lowercased().contains("linked") ||
+               errDesc.contains("identity_already_exists") {
+                throw OAuthError.message("このログイン方法は、すでに別の StreetMelody アカウントで使われています")
+            }
             throw OAuthError.message("プロバイダ側エラー: \(errDesc)")
         }
         // link はセッションを直接(#access_token=...)で返すことがある → その場合は直接確立
