@@ -5,11 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StreetMelody</title>
     <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="./src/pastel.css" />
   </head>
   <body>
     <div class="app-shell">
-      <main class="phone" aria-label="StreetMelody prototype">
+      <main class="phone" aria-label="StreetMelody">
 
+        <aside class="desktop-sidebar" aria-label="StreetMelody">
+          <a class="pastel-brand" href="./">♫ <span>Street<br>Melody<span class="brand-spark">.</span></span></a>
+          <div class="sidebar-welcome"><div class="sidebar-portrait"></div><strong>音楽で、つながろう。</strong><p>YOUR LITTLE MUSIC WORLD</p></div>
+          <div class="sidebar-footer"><span>✦</span><strong>まだ知らない、好きな音に。</strong><p>一歩歩けば、新しいメロディ。</p><button class="btn secondary" data-target="playlist" type="button">今日のメロディを見る ↗</button></div>
+        </aside>
         <!-- ── メイン画面 ── -->
         <section class="screen active" id="home-screen"        data-screen="home"></section>
         <section class="screen"        id="melody-screen"      data-screen="melody"></section>

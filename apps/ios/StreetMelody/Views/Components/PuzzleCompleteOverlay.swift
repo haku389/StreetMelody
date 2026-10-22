@@ -9,7 +9,7 @@ struct PuzzleCompleteOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.82).ignoresSafeArea()
+            MLPalette.ink.opacity(0.55).ignoresSafeArea()
                 .opacity(appear ? 1 : 0)
 
             if let t = track {
@@ -43,27 +43,27 @@ struct PuzzleCompleteOverlay: View {
                     .font(.system(size: 24))
                 Text("パズル完成！")
                     .font(.system(size: 18, weight: .black))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(MLPalette.ink)
                 Text(track.title ?? "—")
                     .font(.system(size: 13, weight: .heavy))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(MLPalette.ink)
                 Text(track.artistName ?? "—")
                     .font(.system(size: 11, weight: .heavy))
-                    .foregroundStyle(Color(hex: "817992"))
+                    .foregroundStyle(Color(hex: "8D7694"))
             }
             .padding(.bottom, 16)
 
             // Reward badges
             HStack(spacing: 8) {
                 rewardBadge(icon: "🧩", text: "\(track.ownedPieces.count) / \(track.pieceCount) 完成",
-                            bg: Color(hex: "8f6df4").opacity(0.25), border: Color(hex: "8f6df4").opacity(0.4),
-                            fg: Color(hex: "c4a8ff"))
+                            bg: Color(hex: "A27BC8").opacity(0.25), border: Color(hex: "A27BC8").opacity(0.4),
+                            fg: Color(hex: "86619F"))
                 rewardBadge(icon: "🪙", text: "+\(track.rewardCoins) コイン",
                             bg: Color(hex: "f9c74f").opacity(0.2), border: Color(hex: "f9c74f").opacity(0.4),
-                            fg: Color(hex: "f9c74f"))
+                            fg: Color(hex: "977134"))
                 rewardBadge(icon: "⭐", text: "+\(track.rewardExp) EXP",
                             bg: Color(hex: "6ee7b7").opacity(0.18), border: Color(hex: "6ee7b7").opacity(0.4),
-                            fg: Color(hex: "6ee7b7"))
+                            fg: Color(hex: "528567"))
             }
             .padding(.bottom, 18)
 
@@ -78,32 +78,32 @@ struct PuzzleCompleteOverlay: View {
                     Text("コレクションで見る")
                         .font(.system(size: 13, weight: .black)).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 13)
-                        .background(LinearGradient(colors: [Color(hex: "8f6df4"), Color(hex: "6041d0")],
+                        .background(LinearGradient(colors: [Color(hex: "A27BC8"), Color(hex: "C3A2E4")],
                                                    startPoint: .leading, endPoint: .trailing),
                                     in: RoundedRectangle(cornerRadius: 16))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
 
                 Button {
                     vm.dismissPuzzleComplete()
                 } label: {
                     Text("閉じる")
                         .font(.system(size: 12, weight: .heavy))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(MLPalette.muted)
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.15)))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
             }
         }
         .padding(22)
         .background(
-            LinearGradient(colors: [Color(hex: "1e0e3c"), Color(hex: "0d1a3a")],
+            LinearGradient(colors: [Color(hex: "FFF8F2"), Color(hex: "EEE0F2")],
                            startPoint: .topLeading, endPoint: .bottomTrailing),
             in: RoundedRectangle(cornerRadius: 28)
         )
         .overlay(RoundedRectangle(cornerRadius: 28).stroke(.white.opacity(0.14)))
-        .shadow(color: .black.opacity(0.7), radius: 32, y: 16)
+        .shadow(color: MLPalette.shadow.opacity(0.25), radius: 32, y: 16)
         .padding(.horizontal, 24)
     }
 
@@ -130,7 +130,7 @@ struct TitleCelebrationOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.78).ignoresSafeArea()
+            MLPalette.ink.opacity(0.55).ignoresSafeArea()
                 .opacity(appear ? 1 : 0)
 
             if let t = titleItem {
@@ -150,20 +150,20 @@ struct TitleCelebrationOverlay: View {
 
                     Text("称号「\(t.name)」を獲得！")
                         .font(.system(size: 17, weight: .black))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(MLPalette.ink)
                         .padding(.bottom, 6)
 
                     Text(t.description)
                         .font(.system(size: 11, weight: .heavy))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(MLPalette.muted)
                         .multilineTextAlignment(.center)
                         .padding(.bottom, 14)
 
                     HStack(spacing: 8) {
                         rewardBadge(text: "🪙 +\(t.rewardCoins) コイン",
-                                    bg: Color(hex: "f9c74f").opacity(0.2), border: Color(hex: "f9c74f").opacity(0.4), fg: Color(hex: "f9c74f"))
+                                    bg: Color(hex: "f9c74f").opacity(0.2), border: Color(hex: "f9c74f").opacity(0.4), fg: Color(hex: "977134"))
                         rewardBadge(text: "⭐ +\(t.rewardExp) EXP",
-                                    bg: Color(hex: "6ee7b7").opacity(0.16), border: Color(hex: "6ee7b7").opacity(0.4), fg: Color(hex: "6ee7b7"))
+                                    bg: Color(hex: "6ee7b7").opacity(0.16), border: Color(hex: "6ee7b7").opacity(0.4), fg: Color(hex: "528567"))
                     }
                     .padding(.bottom, 18)
 
@@ -185,17 +185,17 @@ struct TitleCelebrationOverlay: View {
                                                        startPoint: .leading, endPoint: .trailing),
                                         in: RoundedRectangle(cornerRadius: 15))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(MLPressButtonStyle())
                 }
                 .padding(.horizontal, 22).padding(.vertical, 26)
                 .frame(maxWidth: 300)
                 .background(
-                    LinearGradient(colors: [Color(hex: "2a1450"), Color(hex: "141c40")],
+                    LinearGradient(colors: [Color(hex: "FFF8F2"), Color(hex: "F8E6E7")],
                                    startPoint: .topLeading, endPoint: .bottomTrailing),
                     in: RoundedRectangle(cornerRadius: 26)
                 )
                 .overlay(RoundedRectangle(cornerRadius: 26).stroke(Color(hex: "f9c74f").opacity(0.35)))
-                .shadow(color: .black.opacity(0.65), radius: 28, y: 14)
+                .shadow(color: MLPalette.shadow.opacity(0.25), radius: 28, y: 14)
                 .scaleEffect(appear ? 1 : 0.6)
                 .opacity(appear ? 1 : 0)
             }

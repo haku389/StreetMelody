@@ -27,9 +27,9 @@ struct ProfileEditView: View {
 
     private let genders = [("male", "男性"), ("female", "女性"), ("other", "その他"), ("na", "回答しない")]
     private let scopes = [("public", "公開"), ("followers", "フォロワー"), ("friends", "フレンド"), ("best", "ベスト"), ("private", "非公開")]
-    private let purple = Color(hex: "7248E0")
-    private let lilac = Color(hex: "EDE8FF")
-    private let field = Color(hex: "F5F0FF")
+    private let purple = Color(hex: "A27BC8")
+    private let lilac = Color(hex: "EEE0F2")
+    private let field = Color(hex: "FFF4ED")
 
     var body: some View {
         NavigationStack {
@@ -67,7 +67,7 @@ struct ProfileEditView: View {
     private var handleCard: some View {
         card("ユーザーID（必ず公開）") {
             HStack(spacing: 8) {
-                Text("@").font(.system(size: 15, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                Text("@").font(.system(size: 15, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
                 TextField("英数字と - _ ・1〜16文字", text: $handle)
                     .font(.system(size: 14, weight: .heavy))
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -77,7 +77,7 @@ struct ProfileEditView: View {
             .padding(.horizontal, 12).padding(.vertical, 11)
             .background(field, in: RoundedRectangle(cornerRadius: 12))
             Text(handleHint).font(.system(size: 10, weight: .heavy))
-                .foregroundStyle(handleState == .taken || handleState == .invalid ? .red : Color(hex: "B8ACD6"))
+                .foregroundStyle(handleState == .taken || handleState == .invalid ? .red : Color(hex: "B29ABC"))
                 .padding(.top, 6)
         }
     }
@@ -93,7 +93,7 @@ struct ProfileEditView: View {
         card("好きなアーティスト・曲（必ず公開）") {
             favoriteRow(label: "好きなアーティスト", selection: $favArtists,
                         appItems: vm.artistGroups.map { $0.name }, kind: .artist)
-            Divider().background(Color(hex: "E0D8F7")).padding(.vertical, 10)
+            Divider().background(Color(hex: "EADCE7")).padding(.vertical, 10)
             favoriteRow(label: "好きな曲", selection: $favTracks,
                         appItems: vm.tracks.values.compactMap { $0.title }.sorted(), kind: .song)
         }
@@ -116,15 +116,15 @@ struct ProfileEditView: View {
     private var privacyCard: some View {
         card("誕生日・性別（公開範囲を選べます）") {
             HStack {
-                Text("誕生日（必須）").font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                Text("誕生日（必須）").font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 Spacer()
                 DatePicker("", selection: $birthday, in: ...Date(), displayedComponents: .date)
                     .labelsHidden().tint(purple)
                     .environment(\.locale, Locale(identifier: "ja_JP"))
             }
             scopeRow("誕生日の公開範囲", selection: $visBirthday).padding(.top, 8)
-            Divider().background(Color(hex: "E0D8F7")).padding(.vertical, 10)
-            Text("性別").font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+            Divider().background(Color(hex: "EADCE7")).padding(.vertical, 10)
+            Text("性別").font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             chips(genders, selection: $gender)
             scopeRow("性別の公開範囲", selection: $visGender).padding(.top, 8)
         }
@@ -144,7 +144,7 @@ struct ProfileEditView: View {
 
     private func card<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title).font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "3D2F60"))
+            Text(title).font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "49335F"))
                 .padding(.bottom, 12)
             content()
         }
@@ -171,7 +171,7 @@ struct ProfileEditView: View {
                 let on = selection.wrappedValue == item.0
                 Button { selection.wrappedValue = item.0 } label: {
                     Text(item.1).font(.system(size: 12, weight: .black))
-                        .foregroundStyle(on ? .white : Color(hex: "7B6F8A"))
+                        .foregroundStyle(on ? .white : Color(hex: "8D7694"))
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .background(on ? purple : lilac, in: Capsule())
                 }
@@ -182,7 +182,7 @@ struct ProfileEditView: View {
 
     private func scopeRow(_ label: String, selection: Binding<String>) -> some View {
         HStack {
-            Text(label).font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+            Text(label).font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             Spacer()
             Menu {
                 ForEach(scopes, id: \.0) { s in Button(s.1) { selection.wrappedValue = s.0 } }
@@ -205,7 +205,7 @@ struct ProfileEditView: View {
                     .environmentObject(vm)
             } label: {
                 HStack {
-                    Text(label).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                    Text(label).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                     Spacer()
                     Text("\(selection.wrappedValue.count)件 ＋")
                         .font(.system(size: 12, weight: .black)).foregroundStyle(purple)
@@ -218,7 +218,7 @@ struct ProfileEditView: View {
                             HStack(spacing: 4) {
                                 Text(name).font(.system(size: 11, weight: .black)).foregroundStyle(purple)
                                 Button { selection.wrappedValue.remove(name) } label: {
-                                    Image(systemName: "xmark").font(.system(size: 8, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                                    Image(systemName: "xmark").font(.system(size: 8, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
                                 }
                             }
                             .padding(.horizontal, 9).padding(.vertical, 6)
@@ -332,8 +332,8 @@ struct FavoritePickerView: View {
     @State private var searchTask: Task<Void, Never>? = nil
     @State private var manualText = ""
 
-    private let purple = Color(hex: "7248E0")
-    private let lilac = Color(hex: "EDE8FF")
+    private let purple = Color(hex: "A27BC8")
+    private let lilac = Color(hex: "EEE0F2")
 
     var body: some View {
         VStack(spacing: 0) {
@@ -376,12 +376,12 @@ struct FavoritePickerView: View {
             HStack(spacing: 10) {
                 AsyncImage(url: r.artworkUrl.flatMap { URL(string: $0) }) { img in
                     img.resizable().scaledToFill()
-                } placeholder: { Color(hex: "EDE8FF") }
+                } placeholder: { Color(hex: "EEE0F2") }
                 .frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 8))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(r.name).font(.system(size: 13, weight: .black)).foregroundStyle(.primary).lineLimit(1)
+                    Text(r.name).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink).lineLimit(1)
                     if !r.subtitle.isEmpty {
-                        Text(r.subtitle).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                        Text(r.subtitle).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694")).lineLimit(1)
                     }
                 }
                 Spacer()
@@ -392,7 +392,7 @@ struct FavoritePickerView: View {
 
     private func selectableRow(_ name: String, subtitle: String?) -> some View {
         HStack {
-            Text(name).foregroundStyle(.primary)
+            Text(name).foregroundStyle(MLPalette.ink)
             Spacer()
             if selection.contains(name) { Image(systemName: "checkmark").foregroundStyle(purple) }
         }
@@ -400,13 +400,13 @@ struct FavoritePickerView: View {
 
     private var searchField: some View {
         HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").foregroundStyle(Color(hex: "B8ACD6"))
+            Image(systemName: "magnifyingglass").foregroundStyle(Color(hex: "B29ABC"))
             TextField(source == 0 ? "Apple Music を検索" : "絞り込み", text: $search)
                 .font(.system(size: 14, weight: .heavy))
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .background(Color(hex: "F5F0FF"), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color(hex: "FFF4ED"), in: RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16).padding(.bottom, 8)
     }
 
@@ -416,7 +416,7 @@ struct FavoritePickerView: View {
                 TextField(kind == .artist ? "アーティスト名を入力" : "曲名を入力", text: $manualText)
                     .font(.system(size: 14, weight: .heavy))
                     .padding(.horizontal, 12).padding(.vertical, 11)
-                    .background(Color(hex: "F5F0FF"), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color(hex: "FFF4ED"), in: RoundedRectangle(cornerRadius: 12))
                 Button("追加") {
                     let t = manualText.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !t.isEmpty { selection.insert(t); manualText = "" }
@@ -430,7 +430,7 @@ struct FavoritePickerView: View {
                     HStack(spacing: 4) {
                         Text(name).font(.system(size: 11, weight: .black)).foregroundStyle(purple)
                         Button { selection.remove(name) } label: {
-                            Image(systemName: "xmark").font(.system(size: 8, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                            Image(systemName: "xmark").font(.system(size: 8, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
                         }
                     }
                     .padding(.horizontal, 9).padding(.vertical, 6)

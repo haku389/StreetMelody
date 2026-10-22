@@ -30,6 +30,11 @@ struct MyPageView: View {
         } content: {
             VStack(spacing: 0) {
                 profileCard
+                HStack(spacing: 10) {
+                    profileMetric("推し曲", value: "\(vm.oshiTrackIds.count)曲", tint: MLPalette.rose)
+                    profileMetric("完成した曲", value: "\(vm.tracks.values.filter { $0.isComplete }.count)曲", tint: MLPalette.lilac)
+                    profileMetric("フレンド", value: "\(vm.friendsOnly.count)人", tint: MLPalette.honey)
+                }.padding(.top, 14)
                 MLSectionTitle(text: "マイメロディ")
                 melodyButtons
                 MLSectionTitle(text: "推し曲")
@@ -48,14 +53,14 @@ struct MyPageView: View {
                 MLSectionTitle(text: "アカウント")
                 accountSection
                 MLSectionTitle(text: "アプリについて")
-                MLMenuCard(icon: "questionmark.circle.fill", tint: Color(hex: "7B6F8A"), title: "ヘルプ") {
+                MLMenuCard(icon: "questionmark.circle.fill", tint: Color(hex: "8D7694"), title: "ヘルプ") {
                     vm.showToast("ヘルプは準備中です")
                 }
-                MLMenuCard(icon: "doc.text.fill", tint: Color(hex: "7B6F8A"), title: "利用規約・プライバシーポリシー") {
+                MLMenuCard(icon: "doc.text.fill", tint: Color(hex: "8D7694"), title: "利用規約・プライバシーポリシー") {
                     vm.showToast("利用規約は準備中です")
                 }
                 Text("StreetMelody \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
-                    .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B8ACD6"))
+                    .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B29ABC"))
                     .padding(.top, 8)
             }
         }
@@ -74,6 +79,13 @@ struct MyPageView: View {
         }
     }
 
+    private func profileMetric(_ label: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.system(size: 9)).foregroundStyle(MLPalette.muted)
+            Text(value).font(.system(size: 21, weight: .bold)).foregroundStyle(MLPalette.ink)
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(14).mlInset(radius: 18, tint: tint)
+    }
+
     // MARK: - プロフィール（写真・名前・ID・フレンド数・QR）
 
     private var profileCard: some View {
@@ -86,27 +98,27 @@ struct MyPageView: View {
                         .overlay(alignment: .bottomTrailing) {
                             Image(systemName: "camera.fill").font(.system(size: 9, weight: .black)).foregroundStyle(.white)
                                 .frame(width: 22, height: 22)
-                                .background(Color(hex: "7248E0"), in: Circle())
+                                .background(Color(hex: "A27BC8"), in: Circle())
                                 .overlay(Circle().stroke(.white, lineWidth: 2))
                                 .offset(x: 3, y: 3)
                         }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
 
                 VStack(alignment: .leading, spacing: 4) {
                     // 名前とひとことは、ここで直す（自分に関する設定なので）
                     Button { vm.showProfileEdit = true } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text(vm.profile.displayName ?? "名前未設定")
-                                .font(.system(size: 17, weight: .black)).foregroundStyle(.primary).lineLimit(1)
-                            Text("変更").font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                                .font(.system(size: 17, weight: .black)).foregroundStyle(MLPalette.ink).lineLimit(1)
+                            Text("変更").font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
                         }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(MLPressButtonStyle())
                     // ID の横で写せるようにする（伝えるときは貼り付けるのが早い）
                     HStack(spacing: 6) {
                         Text(vm.myHandle.map { "@\($0)" } ?? "@----")
-                            .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7248E0")).lineLimit(1)
+                            .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8")).lineLimit(1)
                         CopyIdButton(handle: vm.myHandle, showsLabel: false)
                     }
                     if vm.premium {
@@ -119,37 +131,37 @@ struct MyPageView: View {
                 // フレンドの数（押すと一覧）。申請が来ていれば「届いた申請」から開く
                 Button { vm.navigate(to: .friends(vm.incomingRequests.isEmpty ? .list : .requests)) } label: {
                     VStack(spacing: 1) {
-                        Text("\(vm.friendsOnly.count)").font(.system(size: 19, weight: .black)).foregroundStyle(.primary)
-                        Text("フレンド").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        Text("\(vm.friendsOnly.count)").font(.system(size: 19, weight: .black)).foregroundStyle(MLPalette.ink)
+                        Text("フレンド").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     }
                     .overlay(alignment: .topTrailing) {
                         if !vm.incomingRequests.isEmpty { CountBadge(count: vm.incomingRequests.count).offset(x: 12, y: -8) }
                     }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
 
                 // 数の隣に増やす口を置く。増やしたくなるのは数を見たとき。
                 // 絵は QR（＋だと押した先で QR が出ることが分からない）
                 Button { vm.navigate(to: .inviteCard) } label: {
                     Image(systemName: "qrcode").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                         .frame(width: 38, height: 38)
-                        .background(Color(hex: "7248E0"), in: Circle())
+                        .background(Color(hex: "A27BC8"), in: Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
                 .accessibilityLabel("自分の QR を見せる")
             }
 
             // レベルとコイン
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text("Lv.\(lv.level)").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                    Text("Lv.\(lv.level)").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
                     Spacer()
                     CoinIcon(size: 16)
-                    Text("\(formatNumber(vm.coins))").font(.system(size: 12, weight: .black)).foregroundStyle(.primary)
+                    Text("\(formatNumber(vm.coins))").font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink)
                 }
                 ProgressBarView(value: Double(lv.current) / Double(max(lv.next, 1))).frame(height: 6)
                 Text("次のレベルまで あと\(lv.next - lv.current) EXP")
-                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B29ABC"))
             }
         }
         .padding(16).mlCard()
@@ -163,13 +175,13 @@ struct MyPageView: View {
                 VStack(spacing: 6) {
                     Image(systemName: "music.note").font(.system(size: 18, weight: .black))
                     Text("マイメロディを試聴").font(.system(size: 12, weight: .black))
-                    Text("音色: \(vm.myTimbreName)").font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Text("音色: \(vm.myTimbreName)").font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 }
-                .foregroundStyle(Color(hex: "7248E0"))
+                .foregroundStyle(Color(hex: "A27BC8"))
                 .frame(maxWidth: .infinity).padding(.vertical, 16)
                 .mlCard(radius: 18, elevation: .low)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MLPressButtonStyle())
             Button { vm.navigate(to: .melodyMix) } label: {
                 VStack(spacing: 6) {
                     Image(systemName: "wand.and.stars").font(.system(size: 18, weight: .black))
@@ -178,11 +190,11 @@ struct MyPageView: View {
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity).padding(.vertical, 16)
-                .background(LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "7248E0")], startPoint: .top, endPoint: .bottom),
+                .background(LinearGradient(colors: [Color(hex: "C3A2E4"), Color(hex: "A27BC8")], startPoint: .top, endPoint: .bottom),
                             in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .mlGlow()
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MLPressButtonStyle())
         }
     }
 
@@ -199,7 +211,7 @@ struct MyPageView: View {
         }
         MLMenuCard(icon: "bell.fill", tint: Color(hex: "F97316"), title: "通知",
                    desc: "即時通知・まとめ通知の設定") { vm.navigate(to: .notifySettings) }
-        MLMenuCard(icon: "dot.radiowaves.left.and.right", tint: Color(hex: "7248E0"), title: "バックグラウンド検知",
+        MLMenuCard(icon: "dot.radiowaves.left.and.right", tint: Color(hex: "A27BC8"), title: "バックグラウンド検知",
                    desc: vm.bgScanEnabled ? "オン · \(vm.bgScanMode == "normal" ? "標準" : "省電力")スキャン" : "オフ") {
             vm.navigate(to: .bgSettings)
         }
@@ -217,7 +229,7 @@ struct MyPageView: View {
             ("email", "メール", ""), ("google", "Google（YouTube Music）", "youtubeMusic"), ("spotify", "Spotify", "spotify"),
         ]
         return VStack(alignment: .leading, spacing: 0) {
-            Text("ログイン方法").font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7B6F8A"))
+            Text("ログイン方法").font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "8D7694"))
                 .padding(.bottom, 6)
             ForEach(rows, id: \.id) { r in
                 let linked = vm.linkedProviders.contains(r.id)
@@ -225,13 +237,13 @@ struct MyPageView: View {
                 if linked || canAdd {
                     HStack(spacing: 10) {
                         if r.service.isEmpty {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color(hex: "7B6F8A"))
+                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color(hex: "8D7694"))
                                 .frame(width: 24, height: 24)
                                 .overlay(Image(systemName: "envelope.fill").font(.system(size: 11, weight: .bold)).foregroundStyle(.white))
                         } else {
                             ServiceIcon(service: r.service, size: 24)
                         }
-                        Text(r.name).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                        Text(r.name).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                         Spacer()
                         if linked {
                             Label("使えます", systemImage: "checkmark").font(.system(size: 11, weight: .black))
@@ -249,10 +261,10 @@ struct MyPageView: View {
                                 }
                                 .font(.system(size: 12, weight: .black)).foregroundStyle(.white)
                                 .frame(minWidth: 52).padding(.horizontal, 12).padding(.vertical, 7)
-                                .background(Color(hex: "7248E0"), in: Capsule())
+                                .background(Color(hex: "A27BC8"), in: Capsule())
                                 .mlGlow()
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(MLPressButtonStyle())
                             .disabled(linking != nil)
                         }
                     }
@@ -260,7 +272,7 @@ struct MyPageView: View {
                 }
             }
             Text("足しても名前・ID・進行はそのまま。どの方法でも同じアカウントに入れます。")
-                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B8ACD6"))
+                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B29ABC"))
                 .padding(.top, 4)
         }
         .padding(12)
@@ -272,17 +284,17 @@ struct MyPageView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill((vm.isGuestAccount ? Color(hex: "7B6F8A") : Color(hex: "1A9E6E")).opacity(0.13))
+                    .fill((vm.isGuestAccount ? Color(hex: "8D7694") : Color(hex: "1A9E6E")).opacity(0.13))
                     .frame(width: 40, height: 40)
                     .overlay(Image(systemName: vm.isGuestAccount ? "person.fill.questionmark" : "checkmark.seal.fill")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(vm.isGuestAccount ? Color(hex: "7B6F8A") : Color(hex: "1A9E6E")))
+                        .foregroundStyle(vm.isGuestAccount ? Color(hex: "8D7694") : Color(hex: "1A9E6E")))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(vm.isGuestAccount ? "ログインしていません" : "ログイン中")
-                        .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                        .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                     Text(vm.isGuestAccount ? "端末の中だけで動いています · ログインでフレンド・機種変更に対応"
                                            : (vm.accountEmail ?? "共通アカウント"))
-                        .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+                        .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
                 }
             }
             if vm.isGuestAccount {
@@ -308,53 +320,53 @@ struct MyPageView: View {
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 Text("すれちがいの相手に、あなたの推し曲がパズルとして届きます（解放済みの曲から選べます）")
-                    .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
                 Spacer(minLength: 8)
                 Text("\(oshiTracks.count) / \(limit)曲")
-                    .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                    .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
             }
 
             if oshiTracks.isEmpty {
                 Text("まだ推し曲が設定されていません")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     .frame(maxWidth: .infinity).padding(.vertical, 10)
             } else {
                 ForEach(oshiTracks) { track in
                     HStack(spacing: 10) {
                         ArtBlockView(track: track, cornerRadius: 10).frame(width: 36, height: 36)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(track.title ?? "—").font(.system(size: 12, weight: .black)).lineLimit(1).foregroundStyle(.primary)
-                            Text(track.displayArtist).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                            Text(track.title ?? "—").font(.system(size: 12, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
+                            Text(track.displayArtist).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                         }
                         Spacer()
                         Button { vm.toggleOshi(trackId: track.id) } label: {
-                            Text("✕").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                            Text("✕").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
                                 .frame(width: 26, height: 26)
-                                .background(Color(hex: "EDE8FF"), in: Circle())
+                                .background(Color(hex: "EEE0F2"), in: Circle())
                         }
                     }
                     .padding(.horizontal, 10).padding(.vertical, 8)
-                    .background(Color(hex: "7248E0").opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "E0D8F7")))
+                    .background(Color(hex: "A27BC8").opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "EADCE7")))
                 }
             }
 
             if oshiTracks.count < limit {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("解放済みの曲から選択")
-                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     let available = vm.unlockedTrackIds.filter { !vm.oshiTrackIds.contains($0) }.compactMap { vm.track(for: $0) }
                     if available.isEmpty {
                         Text("解放済みの曲がありません")
-                            .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                            .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     } else {
                         FlowLayout(spacing: 8) {
                             ForEach(available) { track in
                                 Button("+ \(track.title ?? "—")") { vm.toggleOshi(trackId: track.id) }
-                                    .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                                    .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
                                     .padding(.horizontal, 12).padding(.vertical, 6)
-                                    .background(Color(hex: "7248E0").opacity(0.1), in: Capsule())
-                                    .overlay(Capsule().stroke(Color(hex: "7248E0").opacity(0.3)))
+                                    .background(Color(hex: "A27BC8").opacity(0.1), in: Capsule())
+                                    .overlay(Capsule().stroke(Color(hex: "A27BC8").opacity(0.3)))
                             }
                         }
                     }
@@ -376,7 +388,7 @@ struct MyPageView: View {
                     let connected = vm.linkedServices[sv.0] ?? false
                     ServiceIcon(service: sv.0, size: 34)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(sv.1).font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                        Text(sv.1).font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                         if connected {
                             Label("連携中", systemImage: "checkmark").font(.system(size: 10, weight: .black))
                                 .foregroundStyle(Color(hex: "1A9E6E"))
@@ -385,9 +397,9 @@ struct MyPageView: View {
                     Spacer()
                     Button(connected ? "解除" : "連携する") { vm.toggleService(sv.0) }
                         .font(.system(size: 12, weight: .black))
-                        .foregroundStyle(connected ? Color(hex: "7B6F8A") : .white)
+                        .foregroundStyle(connected ? Color(hex: "8D7694") : .white)
                         .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(connected ? Color(hex: "EDE8FF") : Color(hex: "7248E0"), in: Capsule())
+                        .background(connected ? Color(hex: "EEE0F2") : Color(hex: "A27BC8"), in: Capsule())
                         .disabled(vm.nowPlayingBusy)
                 }
                 .padding(.vertical, 10)
@@ -403,12 +415,12 @@ struct MyPageView: View {
 
     private var sharedFeedHeader: some View {
         HStack(alignment: .lastTextBaseline) {
-            Text("みんなの今聴いてる曲").font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+            Text("みんなの今聴いてる曲").font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
             Spacer()
             Button("手動で共有") { manualTitle = ""; manualArtist = ""; showManualShare = true }
-                .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                .font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
             Button { Task { await vm.loadSharedFeed() } } label: {
-                Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
             }
             .accessibilityLabel("更新")
         }
@@ -419,16 +431,16 @@ struct MyPageView: View {
         VStack(alignment: .leading, spacing: 0) {
             if vm.sharedFeed.isEmpty {
                 Text("まだ共有されている曲はありません。")
-                    .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
                     .padding(.vertical, 6)
             } else {
                 ForEach(Array(vm.sharedFeed.enumerated()), id: \.element.id) { i, np in
                     HStack(spacing: 10) {
                         UserAvatar(name: np.displayName ?? "", size: 32)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(np.trackTitle).font(.system(size: 12, weight: .black)).foregroundStyle(.primary).lineLimit(1)
+                            Text(np.trackTitle).font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink).lineLimit(1)
                             Text("\(np.displayName ?? "メロディアン") · \(np.serviceKind.displayName)")
-                                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "8D7694")).lineLimit(1)
                         }
                         Spacer()
                         if np.visibility == "friends" {

@@ -8,6 +8,7 @@ struct StreetMelodyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .buttonStyle(MLPressButtonStyle())
                 .environmentObject(vm)
                 .task { await vm.loadAll() }
                 .preferredColorScheme(.light)

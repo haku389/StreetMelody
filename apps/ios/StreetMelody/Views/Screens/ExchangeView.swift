@@ -113,7 +113,7 @@ struct ExchangeView: View {
                 } label: {
                     Image(systemName: "play.fill")
                         .font(.system(size: 11, weight: .heavy))
-                        .foregroundStyle(Color(hex: "8f6df4"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                         .frame(width: 34, height: 34)
                         .background(Color.white.opacity(0.94), in: Circle())
                 }
@@ -131,7 +131,7 @@ struct ExchangeView: View {
         .background(Color.white.opacity(0.86), in: RoundedRectangle(cornerRadius: 22))
         .overlay(
             RoundedRectangle(cornerRadius: 22)
-                .stroke(isSelected ? Color(hex: "8f6df4") : Color.clear, lineWidth: 2)
+                .stroke(isSelected ? Color(hex: "A27BC8") : Color.clear, lineWidth: 2)
         )
         .shadow(color: .black.opacity(0.08), radius: 14, y: 4)
         .onTapGesture { vm.selectCandidate(index) }
@@ -149,7 +149,7 @@ struct ExchangeView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
-                    vm.selectedCandidateIndex != nil ? Color(hex: "8f6df4") : Color.gray.opacity(0.4),
+                    vm.selectedCandidateIndex != nil ? Color(hex: "A27BC8") : Color.gray.opacity(0.4),
                     in: RoundedRectangle(cornerRadius: 20)
                 )
         }

@@ -3,11 +3,11 @@ import SwiftUI
 // MARK: - カラーバリアント
 
 extension LinearGradient {
-    static let mlSunset  = LinearGradient(colors: [Color(hex: "ff9a6c"), Color(hex: "ffca7a"), Color(hex: "6b468c")], startPoint: .topLeading, endPoint: .bottomTrailing)
-    static let mlViolet  = LinearGradient(colors: [Color(hex: "c0adff"), Color(hex: "9271f0"), Color(hex: "4f3b82")], startPoint: .topLeading, endPoint: .bottomTrailing)
-    static let mlBerry   = LinearGradient(colors: [Color(hex: "ff8eb5"), Color(hex: "bb74ff"), Color(hex: "39436f")], startPoint: .topLeading, endPoint: .bottomTrailing)
-    static let mlMagic   = LinearGradient(colors: [Color(hex: "8ee7ff"), Color(hex: "80d8b5"), Color(hex: "365a70")], startPoint: .topLeading, endPoint: .bottomTrailing)
-    static let mlDefault = LinearGradient(colors: [Color(hex: "a892ff"), Color(hex: "ffb0bf"), Color(hex: "33465f")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let mlSunset  = LinearGradient(colors: [Color(hex: "C4A7DA"), Color(hex: "F0BEB9"), Color(hex: "D3A6B5")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let mlViolet  = LinearGradient(colors: [Color(hex: "D3C3EA"), Color(hex: "B599D8"), Color(hex: "A78AC5")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let mlBerry   = LinearGradient(colors: [Color(hex: "F8D6DB"), Color(hex: "E8B4C5"), Color(hex: "C88BA7")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let mlMagic   = LinearGradient(colors: [Color(hex: "BAD3DF"), Color(hex: "C4D8B0"), Color(hex: "A397CA")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let mlDefault = LinearGradient(colors: [Color(hex: "C4A7DA"), Color(hex: "F0BEB9"), Color(hex: "B599D8")], startPoint: .topLeading, endPoint: .bottomTrailing)
 }
 
 extension Color {
@@ -190,7 +190,7 @@ struct PuzzlePiecesView: View {
         }
         .aspectRatio(16.0 / 9.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color(hex: "E0D8F7")))
+        .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color(hex: "EADCE7")))
     }
 
     @ViewBuilder
@@ -306,7 +306,7 @@ struct ProgressBarView: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Color(hex: "eee6fb"))
                 Capsule()
-                    .fill(LinearGradient(colors: [Color(hex: "8f6df4"), Color(hex: "ff7fa6")],
+                    .fill(LinearGradient(colors: [Color(hex: "A27BC8"), Color(hex: "E99BB5")],
                                         startPoint: .leading, endPoint: .trailing))
                     .frame(width: geo.size.width * min(max(value, 0), 1))
             }

@@ -17,14 +17,14 @@ struct InvitePersonSheet: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Capsule().fill(Color(hex: "E0D8F7")).frame(width: 40, height: 5).padding(.top, 10)
+            Capsule().fill(Color(hex: "EADCE7")).frame(width: 40, height: 5).padding(.top, 10)
             UserAvatar(name: person.displayName ?? person.handle ?? "", size: 76)
                 .padding(.top, 8)
             VStack(spacing: 4) {
-                Text(person.displayName ?? "名前未設定").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
-                Text(person.handle.map { "@\($0)" } ?? "").font(.system(size: 13, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                Text(person.displayName ?? "名前未設定").font(.system(size: 20, weight: .black)).foregroundStyle(MLPalette.ink)
+                Text(person.handle.map { "@\($0)" } ?? "").font(.system(size: 13, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
             }
-            Text(caption).font(.system(size: 12, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+            Text(caption).font(.system(size: 12, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
                 .multilineTextAlignment(.center).padding(.horizontal, 24)
 
             FriendRelationButton(userId: person.userId)
@@ -35,7 +35,7 @@ struct InvitePersonSheet: View {
                     dismiss()
                     vm.navigate(to: .friends(.list))
                 }
-                .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
             }
             Spacer(minLength: 0)
         }

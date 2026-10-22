@@ -1031,6 +1031,35 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Computed
 
+    /// Excludes empty/complete puzzles and compares ratios without rounding.
+    var nearlyCompleteTracks: [Track] {
+        tracks.values.filter { $0.pieceCount > 0 && !$0.ownedPieces.isEmpty && !$0.isComplete }
+            .sorted {
+                let left = $0.ownedPieces.count * $1.pieceCount
+                let right = $1.ownedPieces.count * $0.pieceCount
+                return left == right ? $0.id < $1.id : left > right
+            }.prefix(2).map { $0 }
+    }
+
+    func canContinueCollecting(trackId: String) -> Bool {
+        guard let track = tracks[trackId], let encounter = encounters.first(where: { cooldownRemaining(for: $0.id) == 0 }) else { return false }
+        return encounter.candidates.contains { $0.trackId == trackId && !track.ownedPieces.contains($0.pieceNumber) }
+    }
+
+    func continueCollecting(trackId: String) {
+        clearCollectPrompts()
+        if canContinueCollecting(trackId: trackId),
+           let index = encounters.firstIndex(where: { cooldownRemaining(for: $0.id) == 0 }),
+           let candidateIndex = encounters[index].candidates.firstIndex(where: { $0.trackId == trackId && !(tracks[trackId]?.ownedPieces.contains($0.pieceNumber) ?? true) }) {
+            activeTab = .melody
+            activeEncounterIndex = index
+            carouselIndex = candidateIndex
+            selectedCandidateIndex = nil
+        } else {
+            navigate(to: tracks[trackId]?.isUnlocked == true ? .puzzle(trackId: trackId) : .mystery(trackId: trackId))
+        }
+    }
+
     var heroTrack: Track? {
         guard let playlist = dailyPlaylist,
               let item = playlist.tracks.first else { return nil }

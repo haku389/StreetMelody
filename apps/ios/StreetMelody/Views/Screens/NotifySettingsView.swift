@@ -26,7 +26,7 @@ struct NotifySettingsView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
                     Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7248E0"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
         }
@@ -35,9 +35,9 @@ struct NotifySettingsView: View {
     private var navHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("通知設定").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
+                Text("通知設定").font(.system(size: 20, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text("どのタイミングで通知するかを設定します")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             }
             Spacer()
         }
@@ -87,10 +87,10 @@ struct NotifySettingsView: View {
             )
 
             if vm.notifyDigest {
-                Divider().background(Color(hex: "E0D8F7"))
+                Divider().background(Color(hex: "EADCE7"))
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("通知時刻").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Text("通知時刻").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "8D7694"))
                     HStack(spacing: 8) {
                         ForEach(digestTimes, id: \.self) { time in
                             Button {
@@ -98,17 +98,17 @@ struct NotifySettingsView: View {
                             } label: {
                                 Text(time)
                                     .font(.system(size: 13, weight: .black))
-                                    .foregroundStyle(vm.notifyDigestTime == time ? .white : Color(hex: "7B6F8A"))
+                                    .foregroundStyle(vm.notifyDigestTime == time ? .white : Color(hex: "8D7694"))
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 10)
                                     .background(
-                                        vm.notifyDigestTime == time ? Color(hex: "7248E0") : Color(hex: "EDE8FF"),
+                                        vm.notifyDigestTime == time ? Color(hex: "A27BC8") : Color(hex: "EEE0F2"),
                                         in: RoundedRectangle(cornerRadius: 12)
                                     )
                                     .overlay(RoundedRectangle(cornerRadius: 12)
-                                        .stroke(vm.notifyDigestTime == time ? Color(hex: "7248E0") : Color(hex: "E0D8F7")))
+                                        .stroke(vm.notifyDigestTime == time ? Color(hex: "A27BC8") : Color(hex: "EADCE7")))
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(MLPressButtonStyle())
                         }
                     }
                 }
@@ -121,12 +121,12 @@ struct NotifySettingsView: View {
         HStack(spacing: 12) {
             Text(icon).font(.system(size: 22))
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
-                Text(subtitle).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                Text(title).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
+                Text(subtitle).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             }
             Spacer()
             Toggle("", isOn: isOn)
-                .tint(Color(hex: "7248E0"))
+                .tint(Color(hex: "A27BC8"))
                 .labelsHidden()
         }
     }

@@ -60,3 +60,27 @@ targets:
         INFOPLIST_FILE: StreetMelody/Resources/Info.plist
         DEVELOPMENT_TEAM: "FZZ6L3HF9Z"
         CODE_SIGN_STYLE: Automatic
+
+  StreetMelodyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: UITests
+    dependencies:
+      - target: StreetMelody
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.streetmelody.app.uitests
+
+schemes:
+  StreetMelody:
+    build:
+      targets:
+        StreetMelody: all
+        StreetMelodyUITests: [test]
+    test:
+      targets:
+        - StreetMelodyUITests

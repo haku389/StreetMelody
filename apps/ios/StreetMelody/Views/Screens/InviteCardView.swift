@@ -18,7 +18,7 @@ struct InviteCardView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(hex: "B79CFF"), Color(hex: "7248E0"), Color(hex: "3D2F60")],
+            LinearGradient(colors: [Color(hex: "C3A2E4"), Color(hex: "A27BC8"), Color(hex: "49335F")],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
 
@@ -68,9 +68,9 @@ struct InviteCardView: View {
         VStack(spacing: 14) {
             UserAvatar(image: vm.avatarUIImage(), name: vm.profile.displayName ?? "", size: 72)
             VStack(spacing: 4) {
-                Text(vm.profile.displayName ?? "名前未設定").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
+                Text(vm.profile.displayName ?? "名前未設定").font(.system(size: 20, weight: .black)).foregroundStyle(MLPalette.ink)
                 HStack(spacing: 6) {
-                    Text(vm.myHandle.map { "@\($0)" } ?? "@----").font(.system(size: 13, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                    Text(vm.myHandle.map { "@\($0)" } ?? "@----").font(.system(size: 13, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
                     CopyIdButton(handle: vm.myHandle, showsLabel: false)
                 }
             }
@@ -78,19 +78,19 @@ struct InviteCardView: View {
                 QRCodeImage(text: url.absoluteString)
                     .padding(12)
                     .background(Color.white, in: RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "E0D8F7")))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "EADCE7")))
                     .frame(maxWidth: 240)
             } else {
                 // ID が無いと QR を作れない
                 VStack(spacing: 10) {
-                    Image(systemName: "qrcode").font(.system(size: 40)).foregroundStyle(Color(hex: "B8ACD6"))
-                    Text("ユーザーIDを決めると QR が出ます").font(.system(size: 12, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Image(systemName: "qrcode").font(.system(size: 40)).foregroundStyle(Color(hex: "B29ABC"))
+                    Text("ユーザーIDを決めると QR が出ます").font(.system(size: 12, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
                     Button("ユーザーIDを決める") { vm.showProfileEdit = true }
-                        .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                        .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
                 }
                 .frame(height: 220)
             }
-            Text("StreetMelody").font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+            Text("StreetMelody").font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
         }
         .padding(24)
         .frame(maxWidth: .infinity)

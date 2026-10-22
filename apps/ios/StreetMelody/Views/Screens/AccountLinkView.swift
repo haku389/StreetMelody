@@ -28,12 +28,12 @@ struct AccountLinkView: View {
                     GlassSegment(items: Mode.allCases, selection: $mode) { $0.rawValue }
 
                     Label("StyleCare と同じアカウント（共通アカウント）で使えます", systemImage: "person.crop.circle.badge.checkmark")
-                        .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                        .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
                     Text(mode == .login
                          ? "ログインすると、この端末の進行がアカウントに保存され、機種変更や再インストール後も戻せます。"
                          : "メールアドレスとパスワードで登録します。確認メールのリンクを押したあと、ログインしてください。")
                         .font(.system(size: 12, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7B6F8A"))
+                        .foregroundStyle(Color(hex: "8D7694"))
 
                     VStack(spacing: 10) {
                         TextField("メールアドレス", text: $email)
@@ -42,11 +42,11 @@ struct AccountLinkView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(12)
-                            .background(Color(hex: "F5F0FF"), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Color(hex: "FFF4ED"), in: RoundedRectangle(cornerRadius: 12))
                         SecureField("パスワード（6文字以上）", text: $password)
                             .textContentType(mode == .login ? .password : .newPassword)
                             .padding(12)
-                            .background(Color(hex: "F5F0FF"), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Color(hex: "FFF4ED"), in: RoundedRectangle(cornerRadius: 12))
                     }
 
                     if let error {
@@ -63,9 +63,9 @@ struct AccountLinkView: View {
                     .disabled(working != nil || email.isEmpty || password.count < 6)
 
                     HStack {
-                        Rectangle().fill(Color(hex: "E0D8F7")).frame(height: 1)
-                        Text("または").font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
-                        Rectangle().fill(Color(hex: "E0D8F7")).frame(height: 1)
+                        Rectangle().fill(Color(hex: "EADCE7")).frame(height: 1)
+                        Text("または").font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "B29ABC"))
+                        Rectangle().fill(Color(hex: "EADCE7")).frame(height: 1)
                     }
 
                     providerButton("spotify", title: "Spotify で続ける",
@@ -73,12 +73,12 @@ struct AccountLinkView: View {
                         await vm.signInWithSpotify(link: false)
                     }
                     providerButton("google", title: "Google で続ける（YouTube Music）",
-                                   fg: Color(hex: "1c1c22"), bg: .white, border: Color(hex: "E0D8F7")) {
+                                   fg: Color(hex: "1c1c22"), bg: .white, border: Color(hex: "EADCE7")) {
                         await vm.signInWithGoogle(link: false)
                     }
                     if !providers.contains("spotify") {
                         Text("Spotify でのログインは準備中です（共通アカウントの設定待ち）")
-                            .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B8ACD6"))
+                            .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B29ABC"))
                     }
 
                     Spacer(minLength: 8)

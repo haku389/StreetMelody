@@ -34,8 +34,9 @@ data class Track(
     val choices: List<String> = emptyList(),
     val ownedPieces: List<Int> = emptyList(),
     val youtubeVideoId: String? = null,
+    val thumbnailUrl: String? = null,
 ) {
-    val displayTitle: String get() = title ?: maskedLabel ?: "未解放メロディ"
+    val displayTitle: String get() = if (isUnlocked) title ?: "メロディ" else maskedLabel ?: "未解放メロディ"
     val displayArtist: String get() = artistName ?: "???"
     val isComplete: Boolean get() = ownedPieces.size >= pieceCount
     val progress: Float get() = if (pieceCount == 0) 0f else ownedPieces.size.toFloat() / pieceCount
@@ -48,7 +49,7 @@ data class Track(
             ?.let { "https://i.ytimg.com/vi/$it/mqdefault.jpg" }
 
     /** 解放済みの曲アートに使うサムネイル（未解放はネタバレ防止で表示しない） */
-    val artworkUrl: String? get() = if (isUnlocked) youtubeThumbnailUrl else null
+    val artworkUrl: String? get() = if (isUnlocked) thumbnailUrl ?: youtubeThumbnailUrl else null
 }
 
 // ─── Encounter ─────────────────────────────────
@@ -128,3 +129,19 @@ data class HintResponse(
     val hintLevel: Int,
     val answerReady: Boolean,
 )
+
+/** Stable progress ordering; completed and unstarted puzzles are not recommendations. */
+fun closestToCompletion(tracks: Collection<Track>): List<Track> = tracks
+    .filter { it.pieceCount > 0 && it.ownedPieces.isNotEmpty() && !it.isComplete }
+    .sortedWith(compareByDescending<Track> { it.progress }.thenBy { it.id })
+    .take(2)
+
+fun collectableCandidateIndex(track: Track, encounter: Encounter?): Int =
+    encounter?.candidates?.indexOfFirst { it.trackId == track.id && it.pieceNumber !in track.ownedPieces } ?: -1
+
+fun puzzleGridSize(pieceCount: Int): Pair<Int, Int> {
+    if (pieceCount == 24) return 6 to 4
+    val count = pieceCount.coerceAtLeast(1)
+    val columns = kotlin.math.ceil(kotlin.math.sqrt(count.toDouble())).toInt()
+    return columns to ((count + columns - 1) / columns)
+}

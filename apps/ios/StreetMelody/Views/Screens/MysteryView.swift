@@ -39,19 +39,19 @@ struct MysteryView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
                     Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7248E0"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
-                    Text("未解放メロディ").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                    Text("未解放メロディ").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                     Text("ヒントを使ってこの曲の名前を当てよう！")
-                        .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { vm.goBack() } label: {
-                    Text("あとで").font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Text("あとで").font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 }
             }
         }
@@ -86,19 +86,19 @@ struct MysteryView: View {
                                  blur: true)
                     .frame(maxWidth: min(300, UIScreen.main.bounds.width * 0.82))
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(hex: "7248E0").opacity(0.18))
+                    .fill(Color(hex: "A27BC8").opacity(0.18))
                     .frame(width: 62, height: 62)
                     .overlay(Text("🔒").font(.system(size: 28)))
             }
             // アーティスト名は初期状態でも表示
             Text(track.displayArtist)
-                .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
             // 曲名は伏せ字（Lv2で一部開く）
             Text(track.maskedTitle(hintLevel: track.hintLevel))
                 .font(.system(size: 16, weight: .black, design: .monospaced))
-                .foregroundStyle(.primary)
+                .foregroundStyle(MLPalette.ink)
                 .multilineTextAlignment(.center)
-            Text("曲名を当てて解放しよう").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+            Text("曲名を当てて解放しよう").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
         }
         .padding(.bottom, 16)
     }
@@ -108,12 +108,12 @@ struct MysteryView: View {
     private func atmosphereCard(track: Track) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("ヒント①  曲の雰囲気").font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                Text("ヒント①  曲の雰囲気").font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                 Spacer()
                 if track.hintLevel < 1 {
-                    Text("広告").font(.system(size: 9, weight: .black)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Text("広告").font(.system(size: 9, weight: .black)).foregroundStyle(Color(hex: "8D7694"))
                         .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color(hex: "EDE8FF"), in: Capsule())
+                        .background(Color(hex: "EEE0F2"), in: Capsule())
                 }
             }
             if track.hintLevel >= 1 {
@@ -133,10 +133,10 @@ struct MysteryView: View {
     }
 
     private func chip(_ s: String) -> some View {
-        Text(s).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "3D2F60"))
+        Text(s).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "49335F"))
             .padding(.horizontal, 10).padding(.vertical, 8)
             .frame(maxWidth: .infinity)
-            .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color(hex: "EEE0F2"), in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - 試聴 + 当てる + Lv2文字開示
@@ -151,16 +151,16 @@ struct MysteryView: View {
                  : left > 0 ? "▶ 少し聴く（あと\(left)回）"
                  : "本日の試聴回数を使い切りました")
                 .font(.system(size: 13, weight: .black))
-                .foregroundStyle(enabled ? .white : Color(hex: "B8ACD6"))
+                .foregroundStyle(enabled ? .white : Color(hex: "B29ABC"))
                 .frame(maxWidth: .infinity).padding(.vertical, 13)
                 .background(
                     enabled
                         ? LinearGradient(colors: [Color(hex: "79C7FF"), Color(hex: "5BA8F5")], startPoint: .top, endPoint: .bottom)
-                        : LinearGradient(colors: [Color(hex: "EDE8FF"), Color(hex: "EDE8FF")], startPoint: .top, endPoint: .bottom),
+                        : LinearGradient(colors: [Color(hex: "EEE0F2"), Color(hex: "EEE0F2")], startPoint: .top, endPoint: .bottom),
                     in: RoundedRectangle(cornerRadius: 16)
                 )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .disabled(!enabled)
     }
 
@@ -168,7 +168,7 @@ struct MysteryView: View {
         VStack(spacing: 10) {
             previewButton(track: track)
             Text("30秒試聴は iTunes の公式プレビュー音源です（1曲1日3回まで）")
-                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B29ABC"))
             Button { showGuessAlert = true } label: {
                 Text("曲名を当てる").buttonLabel(.pink)
             }
@@ -180,7 +180,7 @@ struct MysteryView: View {
             if vm.hintTickets > 0 {
                 Text("🎟️ ヒントチケット \(vm.hintTickets)枚所持 — 広告なしで解放されます")
                     .font(.system(size: 10, weight: .heavy))
-                    .foregroundStyle(Color(hex: "7248E0"))
+                    .foregroundStyle(Color(hex: "A27BC8"))
                     .multilineTextAlignment(.center)
             }
         }
@@ -194,9 +194,9 @@ struct MysteryView: View {
         let title = track.title ?? ""
         let artist = track.artistName ?? ""
         return VStack(alignment: .leading, spacing: 10) {
-            Text("ヒント③  外部で確認する").font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+            Text("ヒント③  外部で確認する").font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
             Text("Apple Music / Spotify で聴いて曲名を確かめ、上の「曲名を当てる」で入力しよう")
-                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             HStack(spacing: 10) {
                 extBtn("Apple Music", icon: "music.note", bg: Color(hex: "FA2D48")) {
                     ExternalMusic.openAppleMusic(title: title, artist: artist)
@@ -240,7 +240,7 @@ extension View {
 
     private func buttonGlow(_ style: MLButtonStyle) -> Color {
         switch style {
-        case .primary: return Color(hex: "7248E0").opacity(0.30)
+        case .primary: return Color(hex: "A27BC8").opacity(0.30)
         case .pink:    return Color(hex: "FF5C8A").opacity(0.28)
         case .coin:    return Color(hex: "E0A020").opacity(0.25)
         case .secondary: return .clear
@@ -250,16 +250,16 @@ extension View {
     private func buttonFG(_ style: MLButtonStyle) -> Color {
         switch style {
         case .primary, .pink: return .white
-        case .secondary:      return Color(hex: "7248E0")
+        case .secondary:      return Color(hex: "A27BC8")
         case .coin:           return Color(hex: "3a2400")
         }
     }
 
     private func buttonBG(_ style: MLButtonStyle) -> LinearGradient {
         switch style {
-        case .primary:   return LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "7248E0")], startPoint: .top, endPoint: .bottom)
-        case .secondary: return LinearGradient(colors: [Color(hex: "EDE8FF"), Color(hex: "E0D8F7")], startPoint: .top, endPoint: .bottom)
-        case .pink:      return LinearGradient(colors: [Color(hex: "ff9fbd"), Color(hex: "ff7fa6")], startPoint: .top, endPoint: .bottom)
+        case .primary:   return LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "A27BC8")], startPoint: .top, endPoint: .bottom)
+        case .secondary: return LinearGradient(colors: [Color(hex: "EEE0F2"), Color(hex: "EADCE7")], startPoint: .top, endPoint: .bottom)
+        case .pink:      return LinearGradient(colors: [Color(hex: "ff9fbd"), Color(hex: "E99BB5")], startPoint: .top, endPoint: .bottom)
         case .coin:      return LinearGradient(colors: [Color(hex: "ffe28a"), Color(hex: "ffc85b")], startPoint: .top, endPoint: .bottom)
         }
     }

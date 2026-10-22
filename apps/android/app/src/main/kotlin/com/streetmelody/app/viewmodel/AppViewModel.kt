@@ -7,6 +7,8 @@ import com.streetmelody.app.data.model.*
 import com.streetmelody.app.data.repository.MelodyRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.CancellationException
 
 // MARK: - Navigation
 
@@ -80,22 +82,49 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _mission = MutableStateFlow<Mission?>(null)
     val mission: StateFlow<Mission?> = _mission
 
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading
+    private val _loadError = MutableStateFlow<String?>(null)
+    val loadError: StateFlow<String?> = _loadError
+    private val _actionBusy = MutableStateFlow(false)
+    val actionBusy: StateFlow<Boolean> = _actionBusy
+    private val preferences = app.getSharedPreferences("discovery", android.content.Context.MODE_PRIVATE)
+    private val _guideFinished = MutableStateFlow(preferences.getBoolean("guide.v1", false))
+    val guideFinished: StateFlow<Boolean> = _guideFinished
+
+    fun finishGuide() {
+        preferences.edit().putBoolean("guide.v1", true).apply()
+        _guideFinished.value = true
+    }
+
+    fun reopenGuide() { _guideFinished.value = false }
+
     init { loadAll() }
 
     // MARK: - Load
 
     fun loadAll() {
+        if (_loading.value) return
+        _loading.value = true
+        _loadError.value = null
         viewModelScope.launch {
-            launch { runCatching { _user.value = repository.fetchMe() } }
-            launch { runCatching { _collection.value = repository.fetchCollection() } }
-            launch { runCatching { _mission.value = repository.fetchMission() } }
-            launch { runCatching {
-                val list = repository.fetchTracks()
-                _tracks.value = list.associateBy { it.id }
-            }}
-            launch { runCatching { _encounter.value = repository.fetchTodayEncounter() } }
-            launch { runCatching { _playlist.value = repository.fetchDailyPlaylist() } }
+            try {
+                listOf(
+                    launch { load { _user.value = repository.fetchMe() } },
+                    launch { load { _collection.value = repository.fetchCollection() } },
+                    launch { load { _mission.value = repository.fetchMission() } },
+                    launch { load { _tracks.value = repository.fetchTracks().associateBy { it.id } } },
+                    launch { load { _encounter.value = repository.fetchTodayEncounter() } },
+                    launch { load { _playlist.value = repository.fetchDailyPlaylist() } },
+                ).joinAll()
+            } finally { _loading.value = false }
         }
+    }
+
+    private suspend fun load(block: suspend () -> Unit) {
+        try { block() }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { _loadError.value = "一部のデータを取得できませんでした。通信を確認して再試行してください。" }
     }
 
     // MARK: - Actions
@@ -105,53 +134,66 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun confirmPiece() {
         val enc = _encounter.value ?: return
         val idx = _selectedCandidate.value ?: return
-        viewModelScope.launch {
-            runCatching { repository.selectPiece(enc.id, idx) }.onSuccess { result ->
-                _tracks.value = _tracks.value.toMutableMap().also { map ->
-                    map[result.trackId]?.let { track ->
-                        if (result.added && !track.ownedPieces.contains(result.pieceNumber)) {
-                            map[result.trackId] = track.copy(ownedPieces = (track.ownedPieces + result.pieceNumber).sorted())
-                        }
+        if (idx !in enc.candidates.indices || _actionBusy.value) return
+        performAction {
+            val result = repository.selectPiece(enc.id, idx)
+            _tracks.value = _tracks.value.toMutableMap().also { map ->
+                map[result.trackId]?.let { track ->
+                    if (result.added && result.pieceNumber !in track.ownedPieces) {
+                        map[result.trackId] = track.copy(ownedPieces = (track.ownedPieces + result.pieceNumber).sorted())
                     }
                 }
-                _selectedCandidate.value = null
-                showToast(if (result.added) "ピースを獲得しました！" else "所持済みのピースです")
-                val screen = if (result.nextScreen == "puzzle") Screen.Puzzle(result.trackId)
-                             else Screen.Mystery(result.trackId)
-                _navStack.value = _navStack.value + screen
             }
+            _selectedCandidate.value = null
+            showToast(if (result.added) "ピースを獲得しました！" else "所持済みのピースです")
+            _navStack.value = listOf(if (result.nextScreen == "puzzle") Screen.Puzzle(result.trackId) else Screen.Mystery(result.trackId))
+            // Keep rewards, collection totals and the next encounter authoritative on the server.
+            loadAll()
         }
     }
 
-    fun applyHint(trackId: String, kind: HintKind) {
+    private fun performAction(action: suspend () -> Unit) {
+        if (_actionBusy.value) return
+        _actionBusy.value = true
         viewModelScope.launch {
-            runCatching { repository.applyHint(trackId, kind) }.onSuccess { result ->
-                _tracks.value = _tracks.value.toMutableMap().also { map ->
-                    map[trackId]?.let {
-                        map[trackId] = it.copy(hintLevel = result.hintLevel, answerReady = result.answerReady)
-                    }
-                }
-                showToast(if (kind == HintKind.ANSWER) "YouTubeリンクを表示しました" else "ヒントを解放しました")
-            }
+            try { action() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { showToast("通信に失敗しました。もう一度お試しください。") }
+            finally { _actionBusy.value = false }
         }
     }
 
-    fun unlockTrack(trackId: String) {
-        viewModelScope.launch {
-            runCatching { repository.unlockTrack(trackId) }.onSuccess {
-                _tracks.value = _tracks.value.toMutableMap().also { map ->
-                    map[trackId]?.let { map[trackId] = it.copy(isUnlocked = true) }
-                }
-                showToast("曲が解放されました！")
-                val newStack = _navStack.value.dropLast(1) + Screen.Puzzle(trackId)
-                _navStack.value = newStack
-            }
+    fun applyHint(trackId: String, kind: HintKind) = performAction {
+        val result = repository.applyHint(trackId, kind)
+        val updated = repository.fetchTracks().associateBy { it.id }
+        _tracks.value = updated.toMutableMap().also { map ->
+            map[trackId]?.let { map[trackId] = it.copy(hintLevel = result.hintLevel, answerReady = result.answerReady) }
         }
+        showToast("ヒントを更新しました")
+    }
+
+    fun unlockTrack(trackId: String) = performAction {
+        repository.unlockTrack(trackId)
+        _tracks.value = repository.fetchTracks().associateBy { it.id }
+        _navStack.value = _navStack.value.dropLast(1) + Screen.Puzzle(trackId)
+        showToast("曲名を解放しました！")
+    }
+
+    fun continueCollecting(trackId: String) {
+        val track = _tracks.value[trackId] ?: return
+        val index = collectableCandidateIndex(track, _encounter.value)
+        if (index >= 0) { setTab(Tab.EXCHANGE); selectCandidate(index) }
+        else openTrack(trackId)
+    }
+
+    fun openTrack(trackId: String) {
+        val track = _tracks.value[trackId] ?: return
+        navigate(if (track.isUnlocked) Screen.Puzzle(trackId) else Screen.Mystery(trackId))
     }
 
     fun navigate(screen: Screen) { _navStack.value = _navStack.value + screen }
     fun goBack()                  { _navStack.value = _navStack.value.dropLast(1) }
-    fun setTab(tab: Tab)          { _activeTab.value = tab }
+    fun setTab(tab: Tab)          { _activeTab.value = tab; _navStack.value = emptyList() }
 
     private fun showToast(msg: String) {
         _toast.value = msg

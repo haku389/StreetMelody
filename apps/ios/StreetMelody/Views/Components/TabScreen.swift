@@ -64,7 +64,7 @@ struct MLTabScreen<Top: View, Pinned: View, Content: View>: View {
             }
         }
         .background(alignment: .bottom) {
-            Rectangle().fill(Color(hex: "7248E0").opacity(0.10)).frame(height: 0.5)
+            Rectangle().fill(Color(hex: "A27BC8").opacity(0.10)).frame(height: 0.5)
                 .opacity(showsBlur ? 1 : 0)
         }
         .background(.bar.opacity(showsBlur ? 1 : 0), ignoresSafeAreaEdges: .top)
@@ -89,14 +89,43 @@ struct MLTabTitle: View {
     var subtitle: String? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(.system(size: 22, weight: .black)).foregroundStyle(.primary)
-            if let subtitle {
-                Text(subtitle).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(eyebrow).font(.system(size: 7, weight: .semibold)).tracking(1.8).foregroundStyle(MLPalette.muted)
+                Text(title).font(.system(size: 25, weight: .bold)).foregroundStyle(MLPalette.ink)
+                if let subtitle {
+                    Text(subtitle).font(.system(size: 11)).foregroundStyle(MLPalette.muted)
+                }
             }
+            Spacer(minLength: 0)
+            Image(systemName: symbol).font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(MLPalette.primary).frame(width: 44, height: 44)
+                .mlInset(radius: 15)
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var eyebrow: String {
+        switch title {
+        case "メロディ": return "LITTLE ENCOUNTERS, LOVELY SOUNDS"
+        case "コレクション": return "YOUR GROWING MUSIC WORLD"
+        case "ランキング": return "EVERY LITTLE PIECE COUNTS"
+        case "マイページ": return "A LITTLE MORE ABOUT YOU"
+        default: return "YOUR LITTLE MUSIC WORLD"
+        }
+    }
+
+    private var symbol: String {
+        switch title {
+        case "メロディ": return "music.note"
+        case "コレクション": return "square.grid.2x2.fill"
+        case "ランキング": return "star.fill"
+        case "マイページ": return "person.fill"
+        default: return "sparkles"
+        }
+    }
+
 }
 
 // MARK: - 部品

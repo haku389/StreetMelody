@@ -1,88 +1,225 @@
 import SwiftUI
 
-// MARK: - 見た目の土台（影・カード・背景）
-//
-// 以前は影がほぼ無く（不透明度 0.07 の1枚だけ）、カードと背景の差が縁の線だけで、
-// 画面がのっぺりしていた。ここで奥行きの決まりを1か所に持ち、全画面で同じ深さを使う。
-//
-//  ・影は2枚重ねる。足元の短く濃い影（接地）＋広く淡い影（浮き）。
-//    1枚だけだと、ぼやけた灰色の帯になって浮いて見えない。
-//  ・影の色は黒ではなく、アプリの紫を暗くした色。黒い影は紫の画面で濁って見える。
-//  ・背景は一枚色にしない。上の方にだけ淡いにじみを置き、カードの白との差を作る。
+/// Shared with the approved Web prototype and Android MelodyColors.
+enum MLPalette {
+    static let ink = Color(hex: "49335F")
+    static let muted = Color(hex: "8D7694")
+    static let primary = Color(hex: "A27BC8")
+    static let cream = Color(hex: "FFF4ED")
+    static let lilac = Color(hex: "EEE0F2")
+    static let rose = Color(hex: "F6D9D7")
+    static let honey = Color(hex: "F5E4C6")
+    static let shadow = Color(hex: "80618B")
+    static let button = LinearGradient(colors: [Color(hex: "C3A2E4"), primary], startPoint: .top, endPoint: .bottom)
+}
 
 enum MLElevation { case low, mid, high }
 
 extension View {
-    /// 2枚重ねの影
-    func mlShadow(_ e: MLElevation = .mid, tint: Color = Color(hex: "4B2FB0")) -> some View {
-        let v: (r1: CGFloat, y1: CGFloat, o1: Double, r2: CGFloat, y2: CGFloat, o2: Double) = {
-            switch e {
-            case .low:  return (1.5, 1, 0.08, 8, 4, 0.10)
-            case .mid:  return (2, 1, 0.08, 22, 12, 0.14)
-            case .high: return (3, 2, 0.09, 30, 18, 0.18)
+    func mlShadow(_ elevation: MLElevation = .mid, tint: Color = MLPalette.shadow) -> some View {
+        let depth: (CGFloat, CGFloat, Double) = {
+            switch elevation {
+            case .low: return (4, 2, 0.10)
+            case .mid: return (7, 4, 0.14)
+            case .high: return (15, 9, 0.19)
             }
         }()
         return self
-            .shadow(color: tint.opacity(v.o1), radius: v.r1, y: v.y1)
-            .shadow(color: tint.opacity(v.o2), radius: v.r2, y: v.y2)
+            .shadow(color: tint.opacity(0.10), radius: 1.5, y: 1)
+            .shadow(color: tint.opacity(depth.2), radius: depth.0, y: depth.1)
     }
 
-    /// 浮いた白いカード。上が光る細い縁と、2枚重ねの影
     func mlCard(radius: CGFloat = 24, elevation: MLElevation = .mid) -> some View {
         self
             .background {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(LinearGradient(colors: [.white, Color(hex: "FCFAFF")], startPoint: .top, endPoint: .bottom))
+                    .fill(LinearGradient(colors: [Color(hex: "FFF8F2"), Color(hex: "FAEEE8")], startPoint: .topLeading, endPoint: .bottomTrailing))
             }
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(LinearGradient(colors: [.white, Color(hex: "E4DBFA")], startPoint: .top, endPoint: .bottom),
-                                  lineWidth: 1)
+                    .strokeBorder(LinearGradient(colors: [.white, Color.white.opacity(0.45)], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                    .allowsHitTesting(false)
             }
             .mlShadow(elevation)
     }
 
-    /// カードの中に置く小さなマス（数字の枠など）。浮かせず、少しくぼんで見せる。
-    /// カード（浮く）とマス（沈む）で高さの差をつけると、平らに見えない。
-    func mlInset(radius: CGFloat = 16) -> some View {
+    func mlInset(radius: CGFloat = 16, tint: Color = MLPalette.lilac) -> some View {
         self
             .background {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(LinearGradient(colors: [Color(hex: "EBE4FF"), Color(hex: "F3EFFF")], startPoint: .top, endPoint: .bottom))
+                    .fill(LinearGradient(colors: [tint.opacity(0.75), tint], startPoint: .topLeading, endPoint: .bottomTrailing))
             }
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(LinearGradient(colors: [Color(hex: "DCD1F7"), .white], startPoint: .top, endPoint: .bottom),
-                                  lineWidth: 1)
+                    .strokeBorder(LinearGradient(colors: [.white.opacity(0.9), .white.opacity(0.25)], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                    .allowsHitTesting(false)
             }
+            .mlShadow(.low)
     }
 
-    /// 紫の主ボタンの光（色付きの影）
-    func mlGlow(_ color: Color = Color(hex: "7248E0")) -> some View {
-        self.shadow(color: color.opacity(0.32), radius: 12, y: 6)
+    func mlGlow(_ color: Color = MLPalette.primary) -> some View {
+        shadow(color: color.opacity(0.25), radius: 5, y: 4)
     }
 }
 
-// MARK: - 画面の背景
-
 struct MLBackground: View {
     var body: some View {
-        ZStack {
-            LinearGradient(colors: [Color(hex: "F4EEFF"), Color(hex: "F2ECFF"), Color(hex: "F8F5FF")],
-                           startPoint: .top, endPoint: .bottom)
-            // 上の方にだけ淡い色のにじみ（左に紫、右にピンク）
-            GeometryReader { g in
-                Circle().fill(Color(hex: "C4AEFF").opacity(0.50))
-                    .frame(width: g.size.width * 0.95)
-                    .blur(radius: 80)
-                    .offset(x: -g.size.width * 0.35, y: -g.size.width * 0.55)
-                Circle().fill(Color(hex: "FFC2DA").opacity(0.40))
-                    .frame(width: g.size.width * 0.8)
-                    .blur(radius: 80)
-                    .offset(x: g.size.width * 0.45, y: -g.size.width * 0.35)
+        LinearGradient(colors: [Color(hex: "FFF9F3"), MLPalette.cream, Color(hex: "F5EAF2")], startPoint: .topLeading, endPoint: .bottomTrailing)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+    }
+}
+
+/// Uses Button's native press lifecycle: release activates, a cancelled gesture restores the appearance.
+struct MLPressFeedback: ViewModifier {
+    let isPressed: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .brightness(isPressed ? -0.06 : 0)
+            .opacity(isPressed ? 0.82 : 1)
+            .scaleEffect(isPressed && !reduceMotion ? 0.965 : 1)
+            .offset(y: isPressed && !reduceMotion ? 2 : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: isPressed ? 0.08 : 0.16), value: isPressed)
+    }
+}
+
+/// Keeps each existing label and surface; adds a persistent pressed appearance.
+struct MLPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.modifier(MLPressFeedback(isPressed: configuration.isPressed))
+    }
+}
+
+struct MLClayButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .frame(minHeight: 44)
+            .background(MLPalette.button, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.45)))
+            .shadow(color: MLPalette.shadow.opacity(configuration.isPressed ? 0.05 : 0.16), radius: configuration.isPressed ? 1 : 4, y: configuration.isPressed ? 1 : 3)
+            .modifier(MLPressFeedback(isPressed: configuration.isPressed))
+    }
+}
+
+/// Ceramic cream pill with a lilac headphone-inspired note badge.
+struct MLHeroButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color(hex: "76558D"))
+            .padding(.leading, 7).padding(.trailing, 12).padding(.vertical, 7)
+            .frame(minHeight: 44)
+            .background(LinearGradient(colors: [Color(hex: "FFFDF3"), Color(hex: "F5E9DF")], startPoint: .topLeading, endPoint: .bottomTrailing), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color(hex: "D8C4DF")))
+            .shadow(color: Color(hex: "BAA1C5").opacity(configuration.isPressed ? 0.12 : 0.3), radius: configuration.isPressed ? 1 : 4, y: configuration.isPressed ? 1 : 3)
+            .modifier(MLPressFeedback(isPressed: configuration.isPressed))
+    }
+}
+
+struct MLWelcomeHero: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let action: () -> Void
+
+    var body: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 16) {
+                    Image("PastelHero").resizable().scaledToFill()
+                        .frame(height: 180).clipped().accessibilityHidden(true)
+                    copy.padding([.horizontal, .bottom], 20)
+                }
+                .background(MLPalette.lilac)
+            } else {
+                GeometryReader { geometry in
+                    ZStack(alignment: .topLeading) {
+                        Image("PastelHero").resizable().scaledToFill()
+                            .frame(width: geometry.size.width, height: 240).clipped()
+                            .accessibilityHidden(true)
+                        copy
+                            .frame(width: geometry.size.width * 0.51, alignment: .leading)
+                            .padding(.leading, geometry.size.width * 0.45)
+                            .padding(.top, 25)
+                    }
+                }
+                .frame(height: 240)
             }
         }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.5)))
+        .mlShadow()
+    }
+
+    private var copy: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("A LITTLE MUSIC, A LITTLE MAGIC")
+                .font(.system(size: 6, weight: .medium)).tracking(0.4)
+                .foregroundStyle(Color(hex: "785A91"))
+                .padding(6).background(.white.opacity(0.4), in: Capsule())
+            Text("いつもの道に、\n新しいメロディ。")
+                .font(.system(size: 22, weight: .bold)).tracking(-0.8)
+                .foregroundStyle(MLPalette.ink).fixedSize(horizontal: false, vertical: true)
+            Text("すれちがうたび、好きな音が増えていく。")
+                .font(.system(size: 10)).foregroundStyle(Color(hex: "745887"))
+            Button(action: action) {
+                HStack(spacing: 8) {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(Color(hex: "FFF9EE"))
+                        .frame(width: 28, height: 28)
+                        .background(MLPalette.button, in: Circle())
+                        .overlay(Circle().strokeBorder(.white.opacity(0.4)))
+                    Text("届いたメロディ")
+                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .medium)).foregroundStyle(Color(hex: "AE8ABD"))
+                }
+            }
+            .buttonStyle(MLHeroButtonStyle())
+        }
+    }
+}
+
+/// Compact introduction shared by the secondary tabs. No decorative image obscures the content.
+struct MLTabSummary: View {
+    let symbol: String
+    let title: String
+    let caption: String
+    var metrics: [(String, String)] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 49, height: 49)
+                    .background(MLPalette.button, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.55)))
+                    .mlShadow(.low)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.system(size: 17, weight: .bold)).foregroundStyle(MLPalette.ink)
+                    Text(caption).font(.system(size: 11)).foregroundStyle(MLPalette.muted).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            if !metrics.isEmpty {
+                HStack(spacing: 10) {
+                    ForEach(metrics.indices, id: \.self) { index in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(metrics[index].0).font(.system(size: 9)).foregroundStyle(MLPalette.muted)
+                            Text(metrics[index].1).font(.system(size: 22, weight: .bold)).foregroundStyle(MLPalette.ink)
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(13)
+                        .mlInset(radius: 17, tint: [MLPalette.lilac, MLPalette.rose, MLPalette.honey][index % 3])
+                    }
+                }
+            }
+        }.padding(20).mlCard()
     }
 }

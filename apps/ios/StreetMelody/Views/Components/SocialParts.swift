@@ -19,7 +19,7 @@ struct UserAvatar: View {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
                 Circle()
-                    .fill(LinearGradient(colors: [Color(hex: "B79CFF"), Color(hex: "7248E0")],
+                    .fill(LinearGradient(colors: [Color(hex: "C3A2E4"), Color(hex: "A27BC8")],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
                     .overlay {
                         if let c = initial {
@@ -92,7 +92,7 @@ struct ServiceIcon: View {
         case "appleMusic":   return (AnyShapeStyle(LinearGradient(colors: [Color(hex: "FF5C73"), Color(hex: "FA233B")],
                                                                   startPoint: .top, endPoint: .bottom)), "music.note")
         case "youtubeMusic": return (AnyShapeStyle(Color(hex: "FF0000")), "play.fill")
-        default:             return (AnyShapeStyle(Color(hex: "7248E0")), "music.note")
+        default:             return (AnyShapeStyle(Color(hex: "A27BC8")), "music.note")
         }
     }
 }
@@ -104,7 +104,7 @@ struct MLSectionTitle: View {
     let text: String
     var body: some View {
         Text(text)
-            .font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+            .font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 18).padding(.bottom, 8)
     }
@@ -113,7 +113,7 @@ struct MLSectionTitle: View {
 /// 1項目1枚のメニュー：色付きの四角いアイコン・項目名・説明・（数）・右矢印
 struct MLMenuCard: View {
     let icon: String
-    var tint: Color = Color(hex: "7248E0")
+    var tint: Color = Color(hex: "A27BC8")
     let title: String
     var desc: String? = nil
     var badge: Int = 0
@@ -129,21 +129,21 @@ struct MLMenuCard: View {
                     .frame(width: 42, height: 42)
                     .overlay(Image(systemName: icon).font(.system(size: 18, weight: .semibold)).foregroundStyle(tint))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                    Text(title).font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                     if let desc, !desc.isEmpty {
-                        Text(desc).font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(2)
+                        Text(desc).font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694")).lineLimit(2)
                     }
                 }
                 Spacer(minLength: 4)
                 if badge > 0 { CountBadge(count: badge) }
-                Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(Color(hex: "B8ACD6"))
+                Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(Color(hex: "B29ABC"))
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .mlCard()
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .padding(.bottom, 9)
     }
 }
@@ -181,11 +181,11 @@ struct CopyIdButton: View {
                 if showsLabel { Text(copied ? "コピーしました" : "IDをコピー") }
             }
             .font(.system(size: 11, weight: .black))
-            .foregroundStyle(copied ? Color(hex: "1A9E6E") : Color(hex: "7248E0"))
+            .foregroundStyle(copied ? Color(hex: "1A9E6E") : Color(hex: "A27BC8"))
             .padding(.horizontal, showsLabel ? 10 : 7).padding(.vertical, 6)
-            .background((copied ? Color(hex: "1A9E6E") : Color(hex: "7248E0")).opacity(0.10), in: Capsule())
+            .background((copied ? Color(hex: "1A9E6E") : Color(hex: "A27BC8")).opacity(0.10), in: Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .disabled(handle?.isEmpty ?? true)
         .sensoryFeedback(.success, trigger: copied)
     }

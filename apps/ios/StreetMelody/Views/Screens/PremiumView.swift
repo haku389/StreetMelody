@@ -29,7 +29,7 @@ struct PremiumView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
                     Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7248E0"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
         }
@@ -38,10 +38,10 @@ struct PremiumView: View {
     private var navHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("プレミアムプラン").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
+                Text("プレミアムプラン").font(.system(size: 20, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text(vm.premium ? "⭐ 加入中" : "もっと音楽でつながる")
                     .font(.system(size: 11, weight: .heavy))
-                    .foregroundStyle(vm.premium ? Color(hex: "b8860b") : Color(hex: "7B6F8A"))
+                    .foregroundStyle(vm.premium ? Color(hex: "b8860b") : Color(hex: "8D7694"))
             }
             Spacer()
         }
@@ -51,14 +51,14 @@ struct PremiumView: View {
     private var heroCard: some View {
         VStack(spacing: 12) {
             Text("⭐").font(.system(size: 36))
-            Text("StreetMelody プレミアム").font(.system(size: 16, weight: .black)).foregroundStyle(.primary)
+            Text("StreetMelody プレミアム").font(.system(size: 16, weight: .black)).foregroundStyle(MLPalette.ink)
             Text("¥480 / 月").font(.system(size: 22, weight: .black)).foregroundStyle(Color(hex: "b8860b"))
-            Text("いつでもキャンセル可能").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+            Text("いつでもキャンセル可能").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
         }
         .frame(maxWidth: .infinity)
         .padding(20)
         .background(
-            LinearGradient(colors: [Color(hex: "ffd700").opacity(0.1), Color(hex: "7248E0").opacity(0.06)],
+            LinearGradient(colors: [Color(hex: "ffd700").opacity(0.1), Color(hex: "A27BC8").opacity(0.06)],
                            startPoint: .topLeading, endPoint: .bottomTrailing),
             in: RoundedRectangle(cornerRadius: 24)
         )
@@ -72,12 +72,12 @@ struct PremiumView: View {
                 HStack(spacing: 12) {
                     Text(b.0).font(.system(size: 24))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(b.1).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
-                        Text(b.2).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        Text(b.1).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
+                        Text(b.2).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     }
                 }
                 .padding(.vertical, 14)
-                if i < benefits.count - 1 { Divider().background(Color(hex: "E0D8F7")) }
+                if i < benefits.count - 1 { Divider().background(Color(hex: "EADCE7")) }
             }
         }
         .padding(16).mlCard()
@@ -102,10 +102,10 @@ struct PremiumView: View {
         } label: {
             Text("解約する")
                 .font(.system(size: 14, weight: .heavy))
-                .foregroundStyle(Color(hex: "7B6F8A"))
+                .foregroundStyle(Color(hex: "8D7694"))
                 .frame(maxWidth: .infinity).padding(.vertical, 14)
-                .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 18))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "E0D8F7")))
+                .background(Color(hex: "EEE0F2"), in: RoundedRectangle(cornerRadius: 18))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "EADCE7")))
         }
     }
 }

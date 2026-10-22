@@ -20,7 +20,7 @@ struct ArtistDetailView: View {
                 .padding(.bottom, 112)
             } else {
                 Text("アーティストが見つかりません")
-                    .foregroundStyle(Color(hex: "7B6F8A"))
+                    .foregroundStyle(Color(hex: "8D7694"))
                     .padding(.top, 60)
             }
         }
@@ -33,7 +33,7 @@ struct ArtistDetailView: View {
                 Button { vm.goBack() } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7248E0"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
         }
@@ -44,16 +44,16 @@ struct ArtistDetailView: View {
     private func artistHero(group: ArtistGroup) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Circle()
-                .fill(Color(hex: "EDE8FF"))
+                .fill(Color(hex: "EEE0F2"))
                 .frame(width: 64, height: 64)
                 .overlay(Text("🎵").font(.title))
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(group.name).font(.system(size: 16, weight: .black)).foregroundStyle(.primary)
-                Text("曲パズル完成数").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                Text(group.name).font(.system(size: 16, weight: .black)).foregroundStyle(MLPalette.ink)
+                Text("曲パズル完成数").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 HStack(alignment: .lastTextBaseline, spacing: 4) {
-                    Text("\(group.completed)").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
-                    Text("/ \(group.tracks.count) 曲完成").font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Text("\(group.completed)").font(.system(size: 20, weight: .black)).foregroundStyle(MLPalette.ink)
+                    Text("/ \(group.tracks.count) 曲完成").font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 }
                 ProgressBarView(value: Double(group.completed) / Double(max(group.tracks.count, 1)))
             }
@@ -68,7 +68,7 @@ struct ArtistDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("曲パズル一覧")
                 .font(.system(size: 11, weight: .black))
-                .foregroundStyle(Color(hex: "7B6F8A"))
+                .foregroundStyle(Color(hex: "8D7694"))
                 .tracking(1)
 
             VStack(spacing: 10) {
@@ -80,8 +80,8 @@ struct ArtistDetailView: View {
                             ArtBlockView(track: track, cornerRadius: 14).frame(width: 52, height: 52)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
-                                    .font(.system(size: 13, weight: .black)).lineLimit(1).foregroundStyle(.primary)
-                                Text(track.displayArtist).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                                    .font(.system(size: 13, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
+                                Text(track.displayArtist).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                                 ProgressBarView(value: Double(track.ownedPieces.count) / Double(max(track.pieceCount, 1)))
                                     .frame(height: 4)
                             }
@@ -89,13 +89,13 @@ struct ArtistDetailView: View {
                             let done = track.isComplete
                             Text(done ? "完成!" : "\(track.ownedPieces.count)/\(track.pieceCount)")
                                 .font(.system(size: 11, weight: .black))
-                                .foregroundStyle(done ? Color(hex: "1A9E6E") : Color(hex: "7B6F8A"))
+                                .foregroundStyle(done ? Color(hex: "1A9E6E") : Color(hex: "8D7694"))
                         }
                         .padding(12)
                         .background(Color(hex: "FFFFFF"), in: RoundedRectangle(cornerRadius: 18))
-                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "E0D8F7")))
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "EADCE7")))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(MLPressButtonStyle())
                 }
             }
         }

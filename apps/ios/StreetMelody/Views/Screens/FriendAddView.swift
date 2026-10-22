@@ -40,11 +40,11 @@ struct FriendAddView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                    Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
             ToolbarItem(placement: .principal) {
-                Text("フレンドを追加").font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+                Text("フレンドを追加").font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
             }
         }
         .task { await vm.loadFriends() }
@@ -57,10 +57,10 @@ struct FriendAddView: View {
             HStack(spacing: 12) {
                 UserAvatar(image: vm.avatarUIImage(), name: vm.profile.displayName ?? "", size: 52)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(vm.profile.displayName ?? "名前未設定").font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+                    Text(vm.profile.displayName ?? "名前未設定").font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
                     HStack(spacing: 6) {
                         Text(vm.myHandle.map { "@\($0)" } ?? "@----")
-                            .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7248E0")).lineLimit(1)
+                            .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8")).lineLimit(1)
                         CopyIdButton(handle: vm.myHandle, showsLabel: false)
                     }
                 }
@@ -75,7 +75,7 @@ struct FriendAddView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12).background(Color(hex: "FFF1E6"), in: RoundedRectangle(cornerRadius: 12))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
             }
 
             HStack(spacing: 10) {
@@ -85,9 +85,9 @@ struct FriendAddView: View {
             if let url = vm.myInviteURL {
                 ShareLink(item: url, message: Text("StreetMelody でフレンドになろう！ ユーザーID：@\(vm.myHandle ?? "")")) {
                     Label("招待リンクを送る", systemImage: "square.and.arrow.up")
-                        .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                        .font(.system(size: 13, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
                         .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 14))
+                        .background(Color(hex: "EEE0F2"), in: RoundedRectangle(cornerRadius: 14))
                 }
             }
         }
@@ -102,11 +102,11 @@ struct FriendAddView: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity).padding(.vertical, 14)
-            .background(LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "7248E0")], startPoint: .top, endPoint: .bottom),
+            .background(LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "A27BC8")], startPoint: .top, endPoint: .bottom),
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .mlGlow()
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .disabled(vm.myHandle == nil)
         .opacity(vm.myHandle == nil ? 0.5 : 1)
     }
@@ -117,7 +117,7 @@ struct FriendAddView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
-                    Text("@").font(.system(size: 15, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                    Text("@").font(.system(size: 15, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
                     TextField("相手のユーザーID", text: $query)
                         .font(.system(size: 15, weight: .bold))
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -126,16 +126,16 @@ struct FriendAddView: View {
                         .onSubmit { Task { await search() } }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 11)
-                .background(Color(hex: "F5F0FF"), in: RoundedRectangle(cornerRadius: 12))
+                .background(Color(hex: "FFF4ED"), in: RoundedRectangle(cornerRadius: 12))
                 Button { Task { await search() } } label: {
                     Group {
                         if searching { ProgressView().tint(.white) } else { Text("検索") }
                     }
                     .font(.system(size: 13, weight: .black)).foregroundStyle(.white)
                     .frame(width: 64, height: 42)
-                    .background(Color(hex: "7248E0"), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color(hex: "A27BC8"), in: RoundedRectangle(cornerRadius: 12))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
                 .disabled(query.trimmingCharacters(in: .whitespaces).isEmpty || searching)
             }
 
@@ -143,8 +143,8 @@ struct FriendAddView: View {
                 HStack(spacing: 12) {
                     UserAvatar(name: p.displayName ?? p.handle ?? "", size: 44)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(p.displayName ?? "名前未設定").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
-                        Text(p.handle.map { "@\($0)" } ?? "").font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+                        Text(p.displayName ?? "名前未設定").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
+                        Text(p.handle.map { "@\($0)" } ?? "").font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
                     }
                     Spacer()
                     FriendRelationButton(userId: p.userId, compact: true)
@@ -153,10 +153,10 @@ struct FriendAddView: View {
                 .background(Color(hex: "F8F5FF"), in: RoundedRectangle(cornerRadius: 14))
             } else if notFound {
                 Text("見つかりませんでした。IDをもう一度確かめてください。")
-                    .font(.system(size: 12, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 12, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
             }
             Text("申請は相手が承認するまでフレンドになりません。")
-                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B8ACD6"))
+                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B29ABC"))
         }
         .padding(16).mlCard()
     }
@@ -206,15 +206,15 @@ struct FriendRelationButton: View {
             }
         } label: {
             Group {
-                if busy { ProgressView().tint(filled ? .white : Color(hex: "7248E0")) } else { Text(title) }
+                if busy { ProgressView().tint(filled ? .white : Color(hex: "A27BC8")) } else { Text(title) }
             }
             .font(.system(size: compact ? 12 : 15, weight: .black))
-            .foregroundStyle(filled ? .white : Color(hex: "7B6F8A"))
+            .foregroundStyle(filled ? .white : Color(hex: "8D7694"))
             .frame(maxWidth: compact ? nil : .infinity)
             .padding(.horizontal, compact ? 14 : 0).padding(.vertical, compact ? 8 : 14)
-            .background(filled ? Color(hex: "7248E0") : Color(hex: "EDE8FF"), in: Capsule())
+            .background(filled ? Color(hex: "A27BC8") : Color(hex: "EEE0F2"), in: Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .disabled(!enabled || busy)
     }
 }

@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.StreetMelody" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#FFF4ED</item>
+        <item name="android:navigationBarColor">#FFF4ED</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">#A27BC8</item>
+        <item name="android:windowBackground">#FFF4ED</item>
+    </style>
+</resources>

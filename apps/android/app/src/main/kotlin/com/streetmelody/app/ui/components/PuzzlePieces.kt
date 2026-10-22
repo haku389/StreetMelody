@@ -22,9 +22,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.streetmelody.app.ui.theme.MelodyColors
+import com.streetmelody.app.data.model.puzzleGridSize
 
 /**
- * 設計書準拠の 6×4＝24ピース パズル表示（iOS `PuzzlePiecesView` の移植）。
+ * 24ピースは6×4、それ以外はAPIのピース数に合わせて表示する。
  *
  * 所持ピースだけサムネイルを見せ、未所持は lockedピース（淡い紫）で覆う。
  * - [revealAll]: 全ピース表示（フル表示）
@@ -39,9 +40,9 @@ fun PuzzlePieces(
     cornerRadius: Dp = 16.dp,
     revealAll: Boolean = false,
     mosaic: Boolean = false,
+    pieceCount: Int = 24,
 ) {
-    val cols = 6
-    val rows = 4
+    val (cols, rows) = puzzleGridSize(pieceCount)
     val gap = 2.dp
     val lockedColor = Color(0xFFE3DAF5)
     val borderColor = Color(0xFFE0D8F7)
@@ -49,7 +50,7 @@ fun PuzzlePieces(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 9f)
+            .aspectRatio(if (pieceCount == 24) 16f / 9f else cols.toFloat() / rows)
             .clip(RoundedCornerShape(cornerRadius))
             .border(1.dp, borderColor, RoundedCornerShape(cornerRadius))
     ) {
@@ -85,7 +86,7 @@ fun PuzzlePieces(
                 ) {
                     for (c in 0 until cols) {
                         val n = r * cols + c + 1
-                        val visible = revealAll || ownedPieces.contains(n)
+                        val visible = n <= pieceCount && (revealAll || ownedPieces.contains(n))
                         Box(
                             Modifier
                                 .weight(1f)

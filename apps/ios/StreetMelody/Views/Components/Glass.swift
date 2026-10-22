@@ -1,26 +1,16 @@
 import SwiftUI
 
-// MARK: - Liquid Glass の共通部品（StyleCare の flags.js / GlassSegment / GlassIconButton に合わせた切り分け）
-//
-// iOS 26 以降は OS の Liquid Glass（後ろが透けて歪む。ぼかしとは別物）を使う。
-// それ未満はぼかし素材に倒す。真似たガラスは溶け合いや泡の動きまで届かないので、
-// 本物が無い端末で無理に再現しない。
+// MARK: - Shared controls. Keep the public API, use the approved pastel clay finish.
 
 extension View {
-    /// 板にガラスを敷く。iOS 26 は Liquid Glass、それ未満はぼかし素材＋細い縁。
-    @ViewBuilder
+    /// Cream clay surface, consistently across supported OS versions.
     func mlGlass<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
-        if #available(iOS 26.0, *) {
-            self.glassEffect(interactive ? Glass.regular.interactive() : Glass.regular, in: shape)
-        } else {
-            self.background(.ultraThinMaterial, in: shape)
-                .overlay(shape.stroke(Color.white.opacity(0.6), lineWidth: 0.5))
-        }
+        self.background(MLPalette.cream, in: shape)
+            .overlay(shape.stroke(Color.white.opacity(0.8), lineWidth: 1).allowsHitTesting(false))
+            .mlShadow(.low)
     }
 
-    /// 詳細画面のナビゲーションバー。
-    /// iOS 26 は OS のガラス＋スクロール端のぼかしに任せる（不透明に塗ると消える）。
-    /// それ未満は従来どおり背景色で塗る。
+    /// Standard navigation behavior remains native; older OS versions use the cream surface.
     func mlNavBarBackground() -> some View { modifier(MLNavBarBackground()) }
 }
 
@@ -29,7 +19,7 @@ private struct MLNavBarBackground: ViewModifier {
         if #available(iOS 26.0, *) {
             content
         } else {
-            content.toolbarBackground(Color(hex: "F5F0FF"), for: .navigationBar)
+            content.toolbarBackground(Color(hex: "FFF4ED"), for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
         }
     }
@@ -52,22 +42,23 @@ struct GlassSegment<Item: Hashable>: View {
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) { selection = item }
                 } label: {
                     Text(label(item))
-                        .font(.system(size: 12, weight: .black))
-                        .foregroundStyle(on ? Color(hex: "7248E0") : Color(hex: "8A7FA6"))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(on ? Color.white : MLPalette.muted)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 11)
                         .background {
                             if on {
                                 Capsule()
-                                    .fill(Color.white.opacity(0.95))
-                                    .shadow(color: Color(hex: "7248E0").opacity(0.15), radius: 6, y: 2)
+                                    .fill(MLPalette.button)
+                                    .shadow(color: Color(hex: "A27BC8").opacity(0.15), radius: 6, y: 2)
                                     .matchedGeometryEffect(id: "pill", in: pill)
                             }
                         }
                         .contentShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .padding(3)
@@ -76,16 +67,12 @@ struct GlassSegment<Item: Hashable>: View {
     }
 }
 
-// MARK: - GlassIconButton（記号だけのボタン）
-//
-// iOS 26 以降は記号の下に丸いガラスを敷く。それ未満は何も足さない
-// （ガラスの無いところで丸い板だけ置くと、ただの灰色の丸が増えるだけ）。
-// 大きさと当たり判定はどちらも同じにして、ボタンの位置がずれないようにする。
+// MARK: - Rounded icon button with the shared cream surface and clay shadow.
 
 struct GlassIconButton: View {
     let systemName: String
     var size: CGFloat = 38
-    var tint: Color = Color(hex: "7248E0")
+    var tint: Color = Color(hex: "A27BC8")
     var accessibilityLabel: String = ""
     let action: () -> Void
 
@@ -98,17 +85,15 @@ struct GlassIconButton: View {
                 .modifier(GlassCircle())
                 .contentShape(Circle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .accessibilityLabel(accessibilityLabel)
     }
 }
 
 private struct GlassCircle: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.interactive(), in: Circle())
-        } else {
-            content
-        }
+        content.background(MLPalette.cream, in: Circle())
+            .overlay(Circle().strokeBorder(.white.opacity(0.8)))
+            .mlShadow(.low)
     }
 }

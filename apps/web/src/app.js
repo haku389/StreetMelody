@@ -15,10 +15,10 @@ function renderAuth(state) {
   if (state.authUser !== null) { root.innerHTML = ""; return; }
 
   root.innerHTML = `
-    <div style="position:fixed;inset:0;z-index:400;background:linear-gradient(160deg,#2a1a4e,#1a1030 60%,#0f0a20);display:flex;align-items:center;justify-content:center;padding:24px;">
-      <div style="width:100%;max-width:360px;">
+    <div class="auth-backdrop" style="position:fixed;inset:0;z-index:400;background:linear-gradient(160deg,#2a1a4e,#1a1030 60%,#0f0a20);display:flex;align-items:center;justify-content:center;padding:24px;">
+      <div class="auth-card" style="width:100%;max-width:360px;">
         <div style="text-align:center;margin-bottom:32px;">
-          <div style="font-size:44px;margin-bottom:10px;">🎵</div>
+          <div class="auth-art"><img src="./assets/pastel/hero.png" alt="音楽を楽しむ小鳥"></div>
           <h1 style="color:#fff;font-size:24px;font-weight:950;letter-spacing:.04em;">StreetMelody</h1>
           <p style="color:rgba(255,255,255,.55);font-size:12px;margin-top:8px;">すれちがいで音楽がつながる</p>
         </div>
@@ -468,7 +468,7 @@ function renderPuzzleComplete(state) {
     </style>
 
     <!-- 背景 -->
-    <div style="position:fixed;inset:0;z-index:300;background:rgba(6,2,20,.82);animation:pcBg .35s ease both;" aria-hidden="true"></div>
+    <div style="position:fixed;inset:0;z-index:300;background:rgba(96,74,121,.55);animation:pcBg .35s ease both;" aria-hidden="true"></div>
 
     <!-- パーティクル -->
     <div style="position:fixed;inset:0;z-index:301;pointer-events:none;">${particles}</div>
@@ -481,10 +481,10 @@ function renderPuzzleComplete(state) {
     ">
       <div style="
         width:100%;max-width:340px;
-        background:linear-gradient(160deg,#1e0e3c,#0d1a3a);
+        background:linear-gradient(145deg,#fff9f3,#eee0f2);
         border:1px solid rgba(255,255,255,.14);
         border-radius:28px;padding:22px;
-        box-shadow:0 32px 80px rgba(0,0,0,.7);
+        box-shadow:0 32px 80px rgba(101,72,121,.25);
         animation:pcIn .55s cubic-bezier(.34,1.56,.64,1) .1s both;
       ">
         <!-- 完成画像 -->
@@ -497,20 +497,20 @@ function renderPuzzleComplete(state) {
         <!-- テキスト -->
         <div style="text-align:center;animation:pcFadeUp .5s ease .5s both;">
           <p style="font-size:24px;margin-bottom:6px;">🎉</p>
-          <h2 style="font-size:18px;font-weight:950;color:#fff;margin-bottom:4px;">パズル完成！</h2>
-          <p style="font-size:13px;font-weight:900;color:rgba(255,255,255,.9);margin-bottom:2px;">${track.title}</p>
-          <p style="font-size:11px;color:rgba(255,255,255,.55);">${track.artistName}</p>
+          <h2 style="font-size:18px;font-weight:950;color:var(--ink);margin-bottom:4px;">パズル完成！</h2>
+          <p style="font-size:13px;font-weight:900;color:var(--ink);margin-bottom:2px;">${track.title}</p>
+          <p style="font-size:11px;color:var(--muted);">${track.artistName}</p>
         </div>
 
         <!-- バッジ -->
         <div style="display:flex;gap:10px;justify-content:center;margin:16px 0;animation:pcFadeUp .5s ease .65s both;">
-          <div style="background:rgba(143,109,244,.25);border:1px solid rgba(143,109,244,.4);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:900;color:#c4a8ff;">
+          <div style="background:rgba(143,109,244,.25);border:1px solid rgba(143,109,244,.4);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:900;color:#86619f;">
             🧩 ${owned.length} / ${track.pieceCount} 完成
           </div>
-          <div style="background:rgba(249,199,79,.2);border:1px solid rgba(249,199,79,.4);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:900;color:#f9c74f;">
+          <div style="background:rgba(249,199,79,.2);border:1px solid rgba(249,199,79,.4);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:900;color:#977134;">
             🪙 +${track.rewardCoins + 1} コイン
           </div>
-          <div style="background:rgba(110,231,183,.18);border:1px solid rgba(110,231,183,.4);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:900;color:#6ee7b7;">
+          <div style="background:rgba(110,231,183,.18);border:1px solid rgba(110,231,183,.4);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:900;color:#528567;">
             ⭐ +${track.rewardExp} EXP
           </div>
         </div>
@@ -518,11 +518,11 @@ function renderPuzzleComplete(state) {
         <!-- ボタン -->
         <div style="display:grid;gap:8px;animation:pcFadeUp .5s ease .75s both;">
           <button data-dismiss-puzzle-complete data-after="collection" type="button"
-            style="width:100%;padding:13px;border:none;border-radius:16px;background:linear-gradient(90deg,#8f6df4,#6041d0);color:#fff;font-size:13px;font-weight:900;cursor:pointer;letter-spacing:.04em;">
+            style="width:100%;padding:13px;border:none;border-radius:16px;background:linear-gradient(#c5a3e5,#a27bc8);color:#fff9f3;font-size:13px;font-weight:900;cursor:pointer;letter-spacing:.04em;">
             コレクションで見る
           </button>
           <button data-dismiss-puzzle-complete type="button"
-            style="width:100%;padding:11px;border:1px solid rgba(255,255,255,.15);border-radius:16px;background:transparent;color:rgba(255,255,255,.6);font-size:12px;font-weight:800;cursor:pointer;">
+            style="width:100%;padding:11px;border:1px solid rgba(255,255,255,.15);border-radius:16px;background:transparent;color:var(--muted);font-size:12px;font-weight:800;cursor:pointer;">
             閉じる
           </button>
         </div>
@@ -555,29 +555,29 @@ function renderTitleCelebration(state) {
       @keyframes tcIn   { 0%{transform:scale(.6) translateY(30px);opacity:0} 65%{transform:scale(1.05) translateY(-5px)} 100%{transform:scale(1) translateY(0);opacity:1} }
       @keyframes tcIcon { 0%,100%{transform:scale(1) rotate(-4deg)} 50%{transform:scale(1.12) rotate(4deg)} }
     </style>
-    <div style="position:fixed;inset:0;z-index:310;background:rgba(6,2,20,.78);animation:tcBg .3s ease both;" aria-hidden="true"></div>
+    <div style="position:fixed;inset:0;z-index:310;background:rgba(96,74,121,.55);animation:tcBg .3s ease both;" aria-hidden="true"></div>
     <div style="position:fixed;inset:0;z-index:311;display:flex;align-items:center;justify-content:center;padding:24px;">
       <div style="
         width:100%;max-width:300px;text-align:center;
-        background:linear-gradient(160deg,#2a1450,#141c40);
+        background:linear-gradient(145deg,#fff9f3,#f8e6e7);
         border:1px solid rgba(249,199,79,.35);
         border-radius:26px;padding:26px 22px;
-        box-shadow:0 28px 70px rgba(0,0,0,.65);
+        box-shadow:0 28px 70px rgba(101,72,121,.25);
         animation:tcIn .5s cubic-bezier(.34,1.56,.64,1) both;
       ">
-        <p style="font-size:11px;font-weight:900;letter-spacing:.18em;color:#f9c74f;margin-bottom:14px;">TITLE UNLOCKED</p>
+        <p style="font-size:11px;font-weight:900;letter-spacing:.18em;color:#977134;margin-bottom:14px;">TITLE UNLOCKED</p>
         <div style="font-size:52px;line-height:1;margin-bottom:14px;display:inline-block;animation:tcIcon 1.8s ease-in-out infinite;">${title.icon}</div>
-        <h2 style="font-size:17px;font-weight:950;color:#fff;margin-bottom:6px;">称号「${title.name}」を獲得！</h2>
-        <p style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:14px;">${title.description}</p>
+        <h2 style="font-size:17px;font-weight:950;color:var(--ink);margin-bottom:6px;">称号「${title.name}」を獲得！</h2>
+        <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">${title.description}</p>
         <div style="display:flex;gap:8px;justify-content:center;margin-bottom:18px;">
-          <span style="background:rgba(249,199,79,.2);border:1px solid rgba(249,199,79,.4);border-radius:16px;padding:5px 12px;font-size:10px;font-weight:900;color:#f9c74f;">🪙 +${title.rewardCoins} コイン</span>
-          <span style="background:rgba(110,231,183,.16);border:1px solid rgba(110,231,183,.4);border-radius:16px;padding:5px 12px;font-size:10px;font-weight:900;color:#6ee7b7;">⭐ +${title.rewardExp} EXP</span>
+          <span style="background:rgba(249,199,79,.2);border:1px solid rgba(249,199,79,.4);border-radius:16px;padding:5px 12px;font-size:10px;font-weight:900;color:#977134;">🪙 +${title.rewardCoins} コイン</span>
+          <span style="background:rgba(110,231,183,.16);border:1px solid rgba(110,231,183,.4);border-radius:16px;padding:5px 12px;font-size:10px;font-weight:900;color:#528567;">⭐ +${title.rewardExp} EXP</span>
         </div>
         <button data-dismiss-title-celebration type="button"
           style="width:100%;padding:12px;border:none;border-radius:15px;background:linear-gradient(90deg,#f9c74f,#f0a04b);color:#3a2400;font-size:13px;font-weight:950;cursor:pointer;letter-spacing:.04em;">
           やったね！
         </button>
-        ${pending.length > 1 ? `<p style="font-size:10px;color:rgba(255,255,255,.4);margin-top:10px;">ほかに ${pending.length - 1} 件の称号を獲得しています</p>` : ""}
+        ${pending.length > 1 ? `<p style="font-size:10px;color:var(--muted);margin-top:10px;">ほかに ${pending.length - 1} 件の称号を獲得しています</p>` : ""}
       </div>
     </div>
   `;
@@ -625,13 +625,18 @@ function renderHome(state) {
     <div class="home-header">
       ${avatarWithDeco(state)}
       <div class="home-user">
-        <h1>${user.name}</h1>
+        <p class="home-overline">YOUR DAILY SOUNDTRACK</p><h1>こんにちは、${user.name}さん <span class="greeting-sun">☀</span></h1>
         <p>Lv.${lv.level}</p>
         <div class="progress"><span style="--progress:${pct(lv.current, lv.next)}%"></span></div>
       </div>
       ${coinPill(state.coins)}
     </div>
 
+    <section class="welcome-hero" aria-label="音楽との新しい出会い">
+      <img src="./assets/pastel/hero.png" alt="ヘッドホンをつけ、音符とパズルのピースと一緒に街を歩く小鳥" />
+      <div class="welcome-copy"><span class="welcome-eyebrow">A LITTLE MUSIC, A LITTLE MAGIC</span><h2>いつもの道に、<br>新しいメロディ。</h2><p>すれちがうたび、好きな音が増えていく。</p><button class="btn hero-melody-button" data-target="melody" type="button"><span class="hero-note" aria-hidden="true">♫</span><span>届いたメロディを聴く</span><span class="hero-button-arrow" aria-hidden="true">›</span></button></div>
+    </section>
+    <div class="home-dashboard">
     <!-- 今日のサマリーバナー（即時通知 ON のときだけ表示） -->
     ${pendingCount > 0 && (state.notificationSettings?.immediate !== false) ? `
     <div class="notice-panel" style="cursor:pointer;margin-bottom:14px;" data-target="melody">
@@ -652,9 +657,9 @@ function renderHome(state) {
     </div>` : ""}
 
     <!-- 今日のメロディ -->
-    <div class="hero-panel" data-target="playlist" style="cursor:pointer;">
+    <div class="hero-panel daily-melody-card" data-target="playlist" style="cursor:pointer;">
       <div class="art-block hero-art ${heroTrack?.color ?? ""}">
-        <img src="${ASSETS.cover}" alt="">
+        <img src="./assets/pastel/cozy-room.png" alt="レコードのある暖かな部屋">
       </div>
       <div class="hero-content">
         <p class="eyebrow">今日のメロディ</p>
@@ -669,7 +674,7 @@ function renderHome(state) {
     </div>
 
     <!-- コレクション概要 -->
-    <div class="section-block">
+    <div class="section-block collection-overview">
       <div class="section-heading">
         <h2>コレクション</h2>
         <button class="link-button" data-target="collection" type="button">すべて見る</button>
@@ -694,7 +699,7 @@ function renderHome(state) {
     </div>
 
     <!-- 最近届いた曲 -->
-    <div class="section-block">
+    <div class="section-block recent-melodies">
       <div class="section-heading">
         <h2>最近届いた曲</h2>
         <button class="link-button" data-target="melody" type="button">すべて見る</button>
@@ -709,6 +714,9 @@ function renderHome(state) {
         `).join("")}
       </div>
     </div>
+    </div>
+    <button class="discovery-banner" data-target="melody" type="button"><span class="discovery-star" aria-hidden="true">★</span><span><strong>まだ知らない、好きな音に。</strong><small>あなたの世界を広げるメロディを見つけよう。</small></span><span class="discovery-arrow" aria-hidden="true">↗</span></button>
+    <p class="home-signoff">Enjoy the little things. Listen to the lovely ones. ♡</p>
   `;
 }
 
@@ -1979,8 +1987,18 @@ function renderAll() {
 
   document.querySelectorAll(".screen").forEach((el) =>
     el.classList.toggle("active", el.dataset.screen === s.activeScreen));
-  document.querySelectorAll(".nav-item").forEach((el) =>
-    el.classList.toggle("active", el.dataset.target === s.activeScreen));
+  const parentTab = {
+    "piece-select": "melody", mystery: "melody", puzzle: "collection",
+    "artist-detail": "collection", friends: "mypage", "friend-detail": "mypage",
+    premium: "mypage", shop: "mypage", "notify-settings": "mypage",
+    "bg-settings": "mypage", playlist: "home",
+  }[s.activeScreen] || s.activeScreen;
+  document.querySelectorAll(".nav-item").forEach((el) => {
+    const active = el.dataset.target === parentTab;
+    el.classList.toggle("active", active);
+    if (active) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
 }
 
 /* ═══════════════════════════════════════════════

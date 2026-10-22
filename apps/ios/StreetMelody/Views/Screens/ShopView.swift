@@ -30,7 +30,7 @@ struct ShopView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
                     Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7248E0"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
         }
@@ -38,7 +38,7 @@ struct ShopView: View {
 
     private var navHeader: some View {
         HStack {
-            Text("ショップ").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
+            Text("ショップ").font(.system(size: 20, weight: .black)).foregroundStyle(MLPalette.ink)
             Spacer()
         }
         .padding(.bottom, 14)
@@ -48,10 +48,10 @@ struct ShopView: View {
         HStack(spacing: 10) {
             Text("🪙")
             Text("所持メロディコイン")
-                .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             Spacer()
             Text("\(formatNumber(vm.coins)) コイン")
-                .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
         }
         .padding(16).mlCard()
         .padding(.bottom, 16)
@@ -60,19 +60,19 @@ struct ShopView: View {
     private var itemsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("アイテム")
-                .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                 .padding(.bottom, 4)
 
             ForEach(consumableItems) { item in
                 HStack(spacing: 12) {
                     Text(item.icon).font(.system(size: 28))
                         .frame(width: 50, height: 50)
-                        .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 14))
+                        .background(Color(hex: "EEE0F2"), in: RoundedRectangle(cornerRadius: 14))
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(item.name).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                        Text(item.name).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                         Text(item.description).font(.system(size: 10, weight: .heavy))
-                            .foregroundStyle(Color(hex: "7B6F8A")).lineLimit(2)
+                            .foregroundStyle(Color(hex: "8D7694")).lineLimit(2)
                     }
 
                     Spacer()
@@ -83,12 +83,12 @@ struct ShopView: View {
                         Text("🪙\(item.price)")
                             .font(.system(size: 11, weight: .black)).foregroundStyle(.white)
                             .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(Color(hex: "7248E0"), in: RoundedRectangle(cornerRadius: 14))
+                            .background(Color(hex: "A27BC8"), in: RoundedRectangle(cornerRadius: 14))
                     }
                 }
                 .padding(14)
                 .background(Color(hex: "FFFFFF"), in: RoundedRectangle(cornerRadius: 18))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "E0D8F7")))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "EADCE7")))
             }
         }
         .padding(16).mlCard()
@@ -98,7 +98,7 @@ struct ShopView: View {
     private var decorationsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("アバター装飾")
-                .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                 .padding(.bottom, 4)
 
             ForEach(decorationItems) { item in
@@ -110,7 +110,7 @@ struct ShopView: View {
                         Text(item.icon).font(.system(size: 28))
                             .frame(width: 50, height: 50)
                             .background(
-                                isEquipped ? Color(hex: "7248E0").opacity(0.15) : Color(hex: "EDE8FF"),
+                                isEquipped ? Color(hex: "A27BC8").opacity(0.15) : Color(hex: "EEE0F2"),
                                 in: RoundedRectangle(cornerRadius: 14)
                             )
                         if isEquipped {
@@ -123,10 +123,10 @@ struct ShopView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(item.name).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                        Text(item.name).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                         Text(isOwned ? (isEquipped ? "装備中" : "所持済み") : item.description)
                             .font(.system(size: 10, weight: .heavy))
-                            .foregroundStyle(isEquipped ? Color(hex: "1A9E6E") : Color(hex: "7B6F8A"))
+                            .foregroundStyle(isEquipped ? Color(hex: "1A9E6E") : Color(hex: "8D7694"))
                             .lineLimit(2)
                     }
 
@@ -138,10 +138,10 @@ struct ShopView: View {
                         } label: {
                             Text(isEquipped ? "はずす" : "装備")
                                 .font(.system(size: 11, weight: .black))
-                                .foregroundStyle(isEquipped ? Color(hex: "7B6F8A") : .white)
+                                .foregroundStyle(isEquipped ? Color(hex: "8D7694") : .white)
                                 .padding(.horizontal, 12).padding(.vertical, 8)
                                 .background(
-                                    isEquipped ? Color(hex: "EDE8FF") : Color(hex: "7248E0"),
+                                    isEquipped ? Color(hex: "EEE0F2") : Color(hex: "A27BC8"),
                                     in: RoundedRectangle(cornerRadius: 14)
                                 )
                         }
@@ -152,14 +152,14 @@ struct ShopView: View {
                             Text("🪙\(item.price)")
                                 .font(.system(size: 11, weight: .black)).foregroundStyle(.white)
                                 .padding(.horizontal, 12).padding(.vertical, 8)
-                                .background(Color(hex: "7248E0"), in: RoundedRectangle(cornerRadius: 14))
+                                .background(Color(hex: "A27BC8"), in: RoundedRectangle(cornerRadius: 14))
                         }
                     }
                 }
                 .padding(14)
                 .background(Color(hex: "FFFFFF"), in: RoundedRectangle(cornerRadius: 18))
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(
-                    isEquipped ? Color(hex: "7248E0").opacity(0.4) : Color(hex: "E0D8F7")))
+                    isEquipped ? Color(hex: "A27BC8").opacity(0.4) : Color(hex: "EADCE7")))
             }
         }
         .padding(16).mlCard()

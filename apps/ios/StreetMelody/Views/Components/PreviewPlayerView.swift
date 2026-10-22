@@ -139,7 +139,7 @@ struct PreviewPlayerView: View {
             HStack(spacing: 5) {
                 ForEach(0..<13, id: \.self) { i in
                     Capsule()
-                        .fill(LinearGradient(colors: [Color(hex: "b79cff"), Color(hex: "8f6df4")],
+                        .fill(LinearGradient(colors: [Color(hex: "C3A2E4"), Color(hex: "A27BC8")],
                                              startPoint: .top, endPoint: .bottom))
                         .frame(width: 5, height: barHeight(i))
                         .animation(finished ? .default
@@ -169,7 +169,7 @@ struct PreviewPlayerView: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(.white.opacity(0.12))
                     Capsule()
-                        .fill(LinearGradient(colors: [Color(hex: "8f6df4"), Color(hex: "ff7fa6")],
+                        .fill(LinearGradient(colors: [Color(hex: "A27BC8"), Color(hex: "E99BB5")],
                                              startPoint: .leading, endPoint: .trailing))
                         .frame(width: geo.size.width * CGFloat(secondsLeft) / CGFloat(total))
                         .animation(.linear(duration: 1), value: secondsLeft)
@@ -215,7 +215,7 @@ struct PreviewPlayerView: View {
                     .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 18))
                     .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.15)))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MLPressButtonStyle())
             .padding(.horizontal, 24).padding(.bottom, 28)
         }
     }
@@ -228,7 +228,7 @@ struct PreviewPlayerView: View {
                 .background(.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.18)))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
     }
 
     private func barHeight(_ i: Int) -> CGFloat {

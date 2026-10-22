@@ -1138,3 +1138,83 @@ StyleCare（`StyleCareNative/src/constants/flags.js`・`TabBar.js`・`GlassSegme
 - 連携できない理由を分かる言葉に（サーバーで手動連携がオフ／そのログイン方法が別のアカウントで使われている）。ログイン画面を自分で閉じたときは「キャンセルしました」だけ出す（以前は技術的なエラー文が出た）。
 - 確認：Spotify の「追加」で Spotify のログイン画面まで開く（＝手動連携はオン）。ログインそのものは本人が行う。
 - メモ：作業中にリポジトリのフォルダが `Life-os/MelodyLien` → `Life-os/StreetMelody` に変わった（中身・履歴は同じ）。
+
+## 2026-10-15 — Web UI のパステルデザイン統合
+
+- 承認済みの独立試作から生成イラスト2点を `apps/web/assets/pastel/` へ取り込み、ホームとログインに採用。
+- `apps/web/src/pastel.css` に共通デザイントークン、立体カード、ボタン、タブ、下部ナビ、モーダルをまとめた。パズル画像・ストア・認証処理は維持。
+- ホームを実データのコレクション進捗、今日のメロディ、出会い通知、デイリーミッションで構成。900px以上はサイドナビと2列レイアウト、スマホは下部5タブ。低い画面とsafe-areaにも対応。
+- 詳細画面の親タブ選択と `aria-current`、キーボードフォーカス、reduced-motionを整備。完成・称号獲得の配色もパステルへ統一。
+- 対象は Web 本体。iOS / Android のネイティブ画面は今回変更していない。
+
+検証:
+- `GOCACHE=/private/tmp/streetmelody-go-cache npm run check` 成功（JS構文・Goビルド）。
+- `npm run test:store` は経験値の期待値で失敗。HEADのテスト・data.js・store.jsを一時ディレクトリに取り出した変更前の実行でも同一箇所で失敗することを確認。
+- ブラウザでローカルゲスト開始、ホーム→メロディ→ピース選択、コレクション→曲パズル、ランキング、マイページ→通知設定を確認。390pxと1280pxで横方向のオーバーフローなし。最終コンソールエラーなし。
+- スクリーンショット: `docs/ui/pastel-mobile.png` / `docs/ui/pastel-desktop.png`。
+
+## 2026-10-15 — SwiftUI / Jetpack Compose へのパステルデザイン展開
+
+- iOS: `MLPalette` と既存の `mlCard` / `mlInset` / `mlShadow` をクリーム・ラベンダー・ピンク・ハニーの共通トークンへ統一。各画面の既存の紫色・文字色も合わせた。プロフィール・再生・BLE・認証・報酬ロジックは維持。
+- iOS: ホームに `MLWelcomeHero` と新しい発見バナーを追加。集計カードを3色に分け、既存の曲アートと進捗を保持。大きいアクセシビリティ文字サイズではヒーローを縦に配置。iOS 26の標準タブは維持し、それ以前のカスタムタブにも配色を適用。
+- iOS: `Resources/Pastel.xcassets` に生成済み素材を登録。XcodeGenでプロジェクトを再生成し、iPhone 17 Pro / iOS 26.3でホーム表示を確認。`docs/ui/pastel-ios.png` に保存。
+- Android: `MelodyColors` / `PastelCard` / `PastelButton` / `WelcomeHero` を整備。ホーム・パズル・下部ナビ・起動テーマに共通デザインを適用。素材は `drawable-nodpi` に登録。
+- Android: 元々未実装だった交換・アーティスト・プレイリストの3タブは、機能を実装済みに見せず、同じデザインの準備中案内へ変更。
+- Android: ビルドに欠けていたversion catalog、Wrapper、AndroidX設定、テーマ・ランチャーリソースを補完。`gradle/libs.versions.toml` とGradle 8.14.3で再現できる構成にした。
+
+検証:
+- iOS: `xcodebuild -project apps/ios/StreetMelody.xcodeproj -scheme StreetMelody -sdk iphonesimulator -configuration Debug -derivedDataPath /private/tmp/streetmelody-pastel-ios CODE_SIGNING_ALLOWED=NO build` 成功。最終デザインコードのコンパイル済み。シミュレータ用、実機署名は未検証。
+- Android: `ANDROID_HOME=/Users/to_fu/Library/Android/sdk apps/android/gradlew -p apps/android :app:assembleDebug` 成功。APK: `apps/android/app/build/outputs/apk/debug/app-debug.apk`。
+- Androidの実画面確認は未完了。既存AVD `Medium_Phone_API_36` がホスト空き容量不足で起動を拒否したため。ユーザーデータの削除などは行っていない。
+- `git diff --check` 成功。
+
+## 2026-10-15 — オリジナルの小鳥ヒーロー画像へ差し替え
+
+「いつもの道に、新しいメロディ。」の画像を、参考画像を入力せずに新規生成した小鳥のアートへ置換。ラベンダーのヘッドホンをつけたミント色の小鳥が、音符・パズルピースと一緒に街を歩く構図。Web本体・独立試作・SwiftUIのPastelHero・Composeのpastel_heroへ同一画像を組み込み、Webの代替テキストも更新。生成ツールはbuilt-in image_gen。正確なプロンプトは `apps/web/assets/pastel/hero-generation.md` に保存。
+
+差し替え検証: iOSシミュレータ用ビルドとAndroid assembleDebugが成功。iOSシミュレータへ更新版をインストールして再起動し、ホームに小鳥画像が表示されることを確認。確認画像は `docs/ui/original-bird-web.png` / `docs/ui/original-bird-ios.png`。
+
+## 2026-10-15 — ヒーローのメロディボタンを画像に調和
+
+Web・SwiftUI・Composeのヒーロー専用CTAを、クリーム色の陶器風ピル・ラベンダーの音符バッジ・細い縁・柔らかな接地影へ変更。一般の主要ボタンのデザインは維持。Webは文字の折り返しと画像内の余白も調整し、メロディ画面へ遷移することを確認。iOSシミュレータビルド、Android assembleDebugとも成功。画面は `docs/ui/hero-ceramic-button.png`。
+
+## 2026-10-15 — モバイルの初回体験・完成間近の導線・Android主要画面
+
+Webは変更せず、SwiftUI / Compose のみを対象に実装。
+
+- 両OS: 初回の3ステップ案内、スキップ、完了の端末保存、ホームからの再表示。
+- 両OS: 未着手・完成済み・不正な総数を除外し、完成率順で最大2曲をホームに表示。現在選べる未所持の候補がある場合だけ「集める」、なければ「見る」。未解放曲の曲名はマスクを保持。
+- iOS: すれちがいの順番とクールタイムを尊重し、現在の出会いに対象ピースがあればその候補へ進む。なければ既存のパズル／未解放曲の詳細へ。
+- Android: 交換候補の選択・所持状態・取得確認・二重送信防止・結果詳細を接続。コレクションから選択した曲の詳細、アーティスト別の進捗と曲一覧、今日のプレイリスト、ヒント／曲名解放、戻る操作を実装。旧来の「準備中」タブは撤去。
+- Android: 読み込み、部分的な通信失敗、再試行、HTTPエラー、タイムアウトを扱う。受け取り後はサーバーから進捗・報酬・集計を再取得。Debugのみエミュレータホスト／ループバックへのHTTPを許可し、Releaseは変更なし。
+- Android: 実データの9ピースに対して24マス固定だった不整合を修正。24ピースは6×4、それ以外は総数に合わせたグリッド。
+
+検証:
+- iOSシミュレータ向けビルド成功。iPhone 17 Pro / iOS 26.3で、案内の3段階とメロディへの遷移、アプリ再起動後の完了保持、完成間近の曲から詳細への遷移を確認。
+- Android `:app:assembleDebug :app:testDebugUnitTest :app:connectedDebugAndroidTest` 成功。単体テスト6件、エミュレータ計測テスト1件、失敗0。計測テストは隔離したローカルAPIのテストデータを使用し、ピース取得→詳細→アーティスト→プレイリスト→コレクション→ホームを検証。
+- 同じローカルAPI契約の検証で、候補の不正なindexが400となること、同じピースの再取得でadded=falseとなることを確認。
+- 以前は容量不足だったAndroid AVDも空き容量の変化後に起動可能となり、Androidの実画面も確認できた。
+- プレビュー: `docs/ui/discovery-guide-ios.png` / `discovery-progress-ios.png` / `discovery-guide-android.png`。
+- `git diff --check` 成功。
+
+残る範囲: BLEの実機同士・バックグラウンド動作、広告／課金の本番連携、Androidの認証済みユーザー別データ連携は今回の画面実装とテストには含めていない。Androidのヒント／解放は既存の試作APIを使用。Webストアの既存の経験値テストは、モバイルのみという指示に従い変更していない。
+
+## 2026-10-15 — モバイルの他タブをホームのデザインへ統一
+
+Webは変更せず、iOS / Androidの既存タブを対象に整えた。
+
+- 共通: 英文の小見出し、ラベンダーのアイコンタイル、クリームの立体カード、ピンク・ラベンダーの集計タイルを採用。
+- iOS: メロディに受け取り可能な出会い／今日の取得数、コレクションに総ピース／完成曲、ランキングに順位／総ピース、マイページに推し曲／完成曲／承認済みフレンド数を追加。タブ切替の選択ピル、検索欄、曲リスト、順位バッジを統一。メロディの文字化けしていた絵文字はSF Symbolsに置換。
+- iOS: コレクション検索も表示可能な曲名・アーティスト名を対象にし、未解放曲の内部の曲名で検索結果が漏れないようにした。
+- Android: 届いたメロディ／曲パズル／アーティスト／プレイリストに共通の導入・集計カードを追加。候補の選択枠と主要ボタン、曲一覧の矢印、アーティストのアイコンをホームと揃えた。読み込み・既存の遷移・操作中の無効化は維持。
+- iOS UIテストで4つのタブへの遷移を確認し、実画面の添付画像を保存する仕組みを追加。Androidの既存の画面遷移テストにも各タブのスクリーンショット保存を加えた。
+- 検証: iOS Simulatorでビルド・4タブのUIテストが成功（1件、失敗0）。Androidはビルド・単体テスト6件が成功。Gradleの端末テストはAPK転送に失敗したため、同じAPKとテストAPKをadbの非ストリーミング方式でインストールし、AndroidJUnitRunnerで直接実行して成功（1件、失敗0）。ピース選択・受け取り・アーティスト詳細・各タブへの移動を確認。
+- プレビュー: `docs/ui/tabs-{melody,collection,ranking,mypage}-ios.png` と `docs/ui/android-tabs-capture/tabs-{exchange,collection,artists,playlist}-android.png` にシミュレータ／エミュレータの実画面を保存。実機での確認は未実施。
+
+## 2026-10-15 — モバイルのボタンに長押し中のフィードバックを追加
+
+- iOS: 共通の `MLPressButtonStyle` と `MLPressFeedback` を追加。これまでplainだったボタン、アイコン、セグメント、曲リストに適用し、メインボタンとヒーローボタンも統一。押している間は縮小・2ptの沈み・濃淡変化を維持し、主要ボタンの影を弱める。視差効果を減らす設定では縮小・移動・アニメーションを止め、色の変化で示す。
+- Android: `MutableInteractionSource` の押下状態を共用して共通ボタン、ヒーロー、曲や候補のクリック領域に縮小・2dpの沈み・透明度の変化を追加。主要ボタンの影も弱める。標準Materialボタンやタブは標準の押下表示を維持。
+- 長押し専用のアクションは追加せず、標準のタッチ処理を利用。指を離して確定、スクロールやキャンセル時には押下表示を戻す。
+- 検証: iOS / Androidのビルド成功。iOS UIテストでボタンの外へドラッグしてキャンセルした後、5秒長押しして離すと遷移することを確認（1件、失敗0）。通常時・長押し中の実画面は `docs/ui/press-resting-ios.png` / `docs/ui/press-held-ios.png`。
+- Androidの長押しテストも追加したが、今回のエミュレータはSystem UIの応答停止ダイアログが表示され、ActivityScenarioの終了処理でタイムアウトした。操作検証の成功とは扱わない。比較用プレビューは検証できたiOSの実画面からボタン部分を切り出した `docs/ui/press-button-{resting,held}-ios.png` を使用。

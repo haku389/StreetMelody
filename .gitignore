@@ -18,3 +18,7 @@ node_modules/
 
 # ── Misc ──
 *.log
+
+# Android generated files (keep the Gradle wrapper and version catalog)
+apps/android/.gradle/
+apps/android/local.properties

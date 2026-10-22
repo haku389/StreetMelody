@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,26 +23,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.streetmelody.app.data.model.Track
+import com.streetmelody.app.ui.components.PastelCard
 import com.streetmelody.app.ui.components.ProgressBar
 import com.streetmelody.app.ui.components.PuzzlePieces
 import com.streetmelody.app.ui.theme.MelodyColors
 import com.streetmelody.app.viewmodel.AppViewModel
 
-/**
- * 曲パズル画面（iOS `PuzzleView` の移植）。
- * 6×4 のパズルで所持ピースだけサムネイルが見える。
- *
- * 現状の Android スキャフォルドにはパズル候補→個別遷移の導線が無いため、
- * 解放済み・サムネイルあり・ピース所持のトラックを 1 つ選んで表示する。
- */
+/** Detail route always displays the selected track, rather than a dictionary's first item. */
 @Composable
-fun PuzzleScreen(vm: AppViewModel) {
+fun PuzzleScreen(vm: AppViewModel, trackId: String) {
     val tracks by vm.tracks.collectAsState()
-    val home by vm.homeState.collectAsState()
-
-    val track: Track? = tracks.values
-        .firstOrNull { it.isUnlocked && it.youtubeThumbnailUrl != null && it.ownedPieces.isNotEmpty() }
-        ?: home.heroTrack
+    val track = tracks[trackId]
 
     if (track == null) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -67,17 +58,14 @@ fun PuzzleScreen(vm: AppViewModel) {
             fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MelodyColors.Muted,
         )
 
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = Color_FFFFFF,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
+        PastelCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 PuzzlePieces(
-                    thumbnailUrl = track.youtubeThumbnailUrl,
+                    thumbnailUrl = track.thumbnailUrl ?: track.youtubeThumbnailUrl,
                     ownedPieces = track.ownedPieces,
                     color = track.color,
                     cornerRadius = 18.dp,
+                    pieceCount = track.pieceCount,
                 )
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
@@ -93,6 +81,9 @@ fun PuzzleScreen(vm: AppViewModel) {
                     )
                 }
                 ProgressBar(progress = track.progress)
+                if (!track.isComplete) Button(onClick = { vm.setTab(com.streetmelody.app.viewmodel.Tab.EXCHANGE) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("届いたメロディから集める")
+                }
             }
         }
     }

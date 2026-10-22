@@ -29,7 +29,7 @@ struct PieceSelectView: View {
                     backButton
                 } else {
                     Text("データが見つかりません")
-                        .foregroundStyle(Color(hex: "7B6F8A"))
+                        .foregroundStyle(Color(hex: "8D7694"))
                         .padding(.top, 60)
                 }
             }
@@ -45,15 +45,15 @@ struct PieceSelectView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                        .font(.system(size: 18, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
                     Text(track?.displayArtist ?? "—")
-                        .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                        .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                     Text(track?.displayTitle ?? "—")
-                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 }
             }
         }
@@ -63,7 +63,7 @@ struct PieceSelectView: View {
         VStack(spacing: 8) {
             Text("取得したいピースを1つ選んでください")
                 .font(.system(size: 11, weight: .heavy))
-                .foregroundStyle(Color(hex: "7B6F8A"))
+                .foregroundStyle(Color(hex: "8D7694"))
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 4)
         }
@@ -127,11 +127,11 @@ struct PieceSelectView: View {
                 vm.collectPiece(encounterId: encounterId, candidateIndex: candidateIndex, pieceNumber: n)
             } label: {
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(Color(hex: "7248E0").opacity(0.45))
+                    .fill(Color(hex: "A27BC8").opacity(0.45))
                     .overlay(RoundedRectangle(cornerRadius: 3).stroke(.white.opacity(0.9), lineWidth: 1.5))
                     .overlay(Text("\(n)").font(.system(size: 9, weight: .black)).foregroundStyle(.white))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MLPressButtonStyle())
         } else {
             // 取得不可：lockedピース（淡い紫）
             RoundedRectangle(cornerRadius: 3)
@@ -142,12 +142,12 @@ struct PieceSelectView: View {
 
     private var legend: some View {
         HStack(spacing: 16) {
-            legendItem(color: Color(hex: "7248E0").opacity(0.45), label: "取得可能")
+            legendItem(color: Color(hex: "A27BC8").opacity(0.45), label: "取得可能")
             legendItem(color: Color(hex: "1A9E6E"),               label: "所持済み")
             legendItem(color: Color(hex: "E3DAF5"),               label: "取得不可")
         }
         .font(.system(size: 10, weight: .heavy))
-        .foregroundStyle(Color(hex: "7B6F8A"))
+        .foregroundStyle(Color(hex: "8D7694"))
         .padding(.bottom, 14)
     }
 
@@ -162,12 +162,12 @@ struct PieceSelectView: View {
         Button { vm.goBack() } label: {
             Text("‹ パズルを選び直す")
                 .font(.system(size: 13, weight: .black))
-                .foregroundStyle(Color(hex: "7248E0"))
+                .foregroundStyle(Color(hex: "A27BC8"))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "E0D8F7")))
+                .background(Color(hex: "EEE0F2"), in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "EADCE7")))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
     }
 }

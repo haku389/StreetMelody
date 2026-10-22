@@ -36,15 +36,15 @@ struct FriendsView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                    Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
             ToolbarItem(placement: .principal) {
-                Text("フレンド").font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+                Text("フレンド").font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { vm.navigate(to: .friendAdd) } label: {
-                    Image(systemName: "person.badge.plus").font(.system(size: 16, weight: .bold)).foregroundStyle(Color(hex: "7248E0"))
+                    Image(systemName: "person.badge.plus").font(.system(size: 16, weight: .bold)).foregroundStyle(Color(hex: "A27BC8"))
                 }
                 .accessibilityLabel("フレンドを追加")
             }
@@ -81,7 +81,7 @@ struct FriendsView: View {
                         Label("フレンドを解除", systemImage: "person.badge.minus")
                     }
                 } label: {
-                    Image(systemName: "ellipsis").font(.system(size: 16, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Image(systemName: "ellipsis").font(.system(size: 16, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
                         .frame(width: 36, height: 36).contentShape(Rectangle())
                 }
             }
@@ -104,7 +104,7 @@ struct FriendsView: View {
             }
         }
         if !vm.outgoingRequests.isEmpty {
-            Text("送った申請").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "7B6F8A")).padding(.top, 6)
+            Text("送った申請").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "8D7694")).padding(.top, 6)
             rowsCard(vm.outgoingRequests) { u in
                 smallButton("取り消す", filled: false) { Task { await vm.removeFriendLink(u.userId, toast: "申請を取り消しました") } }
             }
@@ -120,9 +120,9 @@ struct FriendsView: View {
                 HStack(spacing: 12) {
                     UserAvatar(name: u.displayName ?? u.handle ?? "", size: 42, best: u.isBest)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(u.displayName ?? "名前未設定").font(.system(size: 14, weight: .black)).foregroundStyle(.primary).lineLimit(1)
+                        Text(u.displayName ?? "名前未設定").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink).lineLimit(1)
                         Text(u.handle.map { "@\($0)" } ?? "IDなし").font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                            .foregroundStyle(Color(hex: "8D7694")).lineLimit(1)
                     }
                     Spacer(minLength: 4)
                     trailing(u)
@@ -138,25 +138,25 @@ struct FriendsView: View {
     private func smallButton(_ title: String, filled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title).font(.system(size: 12, weight: .black))
-                .foregroundStyle(filled ? .white : Color(hex: "7B6F8A"))
+                .foregroundStyle(filled ? .white : Color(hex: "8D7694"))
                 .padding(.horizontal, 12).padding(.vertical, 7)
-                .background(filled ? Color(hex: "7248E0") : Color(hex: "EDE8FF"), in: Capsule())
+                .background(filled ? Color(hex: "A27BC8") : Color(hex: "EEE0F2"), in: Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
     }
 
     private func emptyCard(icon: String, title: String, desc: String, action: (String, () -> Void)?) -> some View {
         VStack(spacing: 10) {
-            Image(systemName: icon).font(.system(size: 26, weight: .semibold)).foregroundStyle(Color(hex: "B8ACD6"))
-            Text(title).font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
-            Text(desc).font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A")).multilineTextAlignment(.center)
+            Image(systemName: icon).font(.system(size: 26, weight: .semibold)).foregroundStyle(Color(hex: "B29ABC"))
+            Text(title).font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
+            Text(desc).font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694")).multilineTextAlignment(.center)
             if let action {
                 Button(action: action.1) {
                     Text(action.0).font(.system(size: 13, weight: .black)).foregroundStyle(.white)
                         .padding(.horizontal, 18).padding(.vertical, 10)
-                        .background(Color(hex: "7248E0"), in: Capsule())
+                        .background(Color(hex: "A27BC8"), in: Capsule())
                 }
-                .buttonStyle(.plain).padding(.top, 4)
+                .buttonStyle(MLPressButtonStyle()).padding(.top, 4)
             }
         }
         .frame(maxWidth: .infinity).padding(.vertical, 28).padding(.horizontal, 20)
@@ -173,16 +173,16 @@ struct LoginRequiredCard: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: "person.crop.circle.badge.exclamationmark").font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(Color(hex: "B8ACD6"))
-            Text("フレンドにはログインが要ります").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                .foregroundStyle(Color(hex: "B29ABC"))
+            Text("フレンドにはログインが要ります").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
             Text("StyleCare と同じアカウント（共通アカウント）でログインすると、申請・承認ができます。")
-                .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "7B6F8A")).multilineTextAlignment(.center)
+                .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694")).multilineTextAlignment(.center)
             Button { showLogin = true } label: {
                 Text("ログイン / 新規登録").font(.system(size: 13, weight: .black)).foregroundStyle(.white)
                     .padding(.horizontal, 18).padding(.vertical, 10)
-                    .background(Color(hex: "7248E0"), in: Capsule())
+                    .background(Color(hex: "A27BC8"), in: Capsule())
             }
-            .buttonStyle(.plain).padding(.top, 4)
+            .buttonStyle(MLPressButtonStyle()).padding(.top, 4)
         }
         .frame(maxWidth: .infinity).padding(.vertical, 26).padding(.horizontal, 20)
         .mlCard()

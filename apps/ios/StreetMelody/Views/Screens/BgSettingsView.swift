@@ -26,7 +26,7 @@ struct BgSettingsView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button { vm.goBack() } label: {
                     Image(systemName: "chevron.left").font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7248E0"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                 }
             }
         }
@@ -35,9 +35,9 @@ struct BgSettingsView: View {
     private var navHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("バックグラウンド検知").font(.system(size: 20, weight: .black)).foregroundStyle(.primary)
+                Text("バックグラウンド検知").font(.system(size: 20, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text("アプリを閉じていてもすれちがいを検知します")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             }
             Spacer()
         }
@@ -48,12 +48,12 @@ struct BgSettingsView: View {
         HStack(spacing: 12) {
             Text("📡").font(.system(size: 22))
             VStack(alignment: .leading, spacing: 3) {
-                Text("バックグラウンド検知").font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                Text("バックグラウンド検知").font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text("オフにするとすれちがいが検知されなくなります")
-                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             }
             Spacer()
-            Toggle("", isOn: $vm.bgScanEnabled).tint(Color(hex: "7248E0")).labelsHidden()
+            Toggle("", isOn: $vm.bgScanEnabled).tint(Color(hex: "A27BC8")).labelsHidden()
         }
         .padding(16).mlCard()
         .padding(.bottom, 14)
@@ -61,32 +61,32 @@ struct BgSettingsView: View {
 
     private var modeSelector: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("スキャンモード").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+            Text("スキャンモード").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
             ForEach(modes, id: \.0) { id, label, sub in
                 Button {
                     vm.bgScanMode = id
                 } label: {
                     HStack(spacing: 12) {
                         Circle()
-                            .fill(vm.bgScanMode == id ? Color(hex: "7248E0") : Color(hex: "E0D8F7"))
+                            .fill(vm.bgScanMode == id ? Color(hex: "A27BC8") : Color(hex: "EADCE7"))
                             .frame(width: 20, height: 20)
                             .overlay(
                                 Circle().fill(.white).frame(width: 8, height: 8)
                                     .opacity(vm.bgScanMode == id ? 1 : 0)
                             )
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(label).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
-                            Text(sub).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                            Text(label).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
+                            Text(sub).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                         }
                         Spacer()
                     }
                     .padding(14)
-                    .background(vm.bgScanMode == id ? Color(hex: "7248E0").opacity(0.08) : Color(hex: "FFFFFF"),
+                    .background(vm.bgScanMode == id ? Color(hex: "A27BC8").opacity(0.08) : Color(hex: "FFFFFF"),
                                 in: RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(
-                        vm.bgScanMode == id ? Color(hex: "7248E0").opacity(0.35) : Color(hex: "E0D8F7")))
+                        vm.bgScanMode == id ? Color(hex: "A27BC8").opacity(0.35) : Color(hex: "EADCE7")))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
             }
         }
         .padding(16).mlCard()
@@ -97,12 +97,12 @@ struct BgSettingsView: View {
         HStack(spacing: 12) {
             Text("🌙").font(.system(size: 22))
             VStack(alignment: .leading, spacing: 3) {
-                Text("夜間は検知しない").font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                Text("夜間は検知しない").font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text("22:00〜7:00 はBluetoothスキャンを停止します")
-                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             }
             Spacer()
-            Toggle("", isOn: $vm.bgNightPause).tint(Color(hex: "7248E0")).labelsHidden()
+            Toggle("", isOn: $vm.bgNightPause).tint(Color(hex: "A27BC8")).labelsHidden()
         }
         .padding(16).mlCard()
     }

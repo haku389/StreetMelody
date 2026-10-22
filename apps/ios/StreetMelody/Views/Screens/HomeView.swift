@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var vm: AppViewModel
+    @AppStorage("streetmelody.discoveryGuide.v1") private var guideFinished = false
+    @State private var guideStep = 0
     @ObservedObject private var music = MusicConnectManager.shared
 
     var body: some View {
@@ -12,14 +14,105 @@ struct HomeView: View {
             levelBar
         } content: {
             VStack(spacing: 0) {
+                if !guideFinished { firstDiscoveryGuide.padding(.bottom, 20) }
+                MLWelcomeHero { vm.activeTab = .melody }
+                    .padding(.bottom, 20)
                 notificationBanner
+                nearlyCompletePanel
                 nowPlayingPanel
                 heroPanel
                 collectionPanel
                 missionPanel
                 recentTracksPanel
+                discoveryBanner
             }
         }
+    }
+
+    private var firstDiscoveryGuide: some View {
+        let titles = ["好きな曲を、誰かのきっかけに。", "すれちがいが、ピースになる。", "あと少しを、今日の楽しみに。"]
+        let descriptions = ["マイページで推し曲を選ぶと、あなたの好きな音楽を届けられます。", "届いたメロディから曲を選び、まだ持っていないピースを集めましょう。", "集めかけの曲はホームから確認できます。まずは最初の出会いを見てみましょう。"]
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("はじめてのStreetMelody").font(.system(size: 10, weight: .semibold)).foregroundStyle(MLPalette.muted)
+                Spacer()
+                Button("あとで") { guideFinished = true }.font(.system(size: 11)).foregroundStyle(MLPalette.muted)
+            }
+            HStack(spacing: 6) {
+                ForEach(0..<3) { index in
+                    Capsule().fill(index == guideStep ? MLPalette.primary : MLPalette.lilac).frame(width: index == guideStep ? 28 : 8, height: 5)
+                }
+                Spacer()
+                Text("\(guideStep + 1) / 3").font(.system(size: 10)).foregroundStyle(MLPalette.muted)
+            }
+            Text(titles[guideStep]).font(.system(size: 20, weight: .bold)).foregroundStyle(MLPalette.ink)
+            Text(descriptions[guideStep]).font(.system(size: 12)).foregroundStyle(MLPalette.muted).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                if guideStep > 0 { Button("戻る") { guideStep -= 1 }.font(.system(size: 12)).foregroundStyle(MLPalette.muted) }
+                Spacer()
+                Button(guideStep < 2 ? "次へ" : "届いたメロディを見る") {
+                    if guideStep < 2 { guideStep += 1 }
+                    else { guideFinished = true; vm.activeTab = .melody }
+                }.buttonStyle(MLClayButtonStyle())
+            }
+        }.padding(20).mlCard()
+    }
+
+    @ViewBuilder private var nearlyCompletePanel: some View {
+        if !vm.nearlyCompleteTracks.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("あと少しで完成").font(.system(size: 16, weight: .bold)).foregroundStyle(MLPalette.ink)
+                        Text("今日の一歩を、この曲に。").font(.system(size: 10)).foregroundStyle(MLPalette.muted)
+                    }
+                    Spacer()
+                    Button("使い方") { guideStep = 0; guideFinished = false }.font(.system(size: 11)).foregroundStyle(MLPalette.primary)
+                }
+                ForEach(vm.nearlyCompleteTracks) { track in
+                    HStack(spacing: 12) {
+                        ArtBlockView(track: track).frame(width: 54, height: 54)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(track.displayTitle).font(.system(size: 12, weight: .semibold)).foregroundStyle(MLPalette.ink).lineLimit(1)
+                            Text("あと\(track.pieceCount - track.ownedPieces.count)ピース · \(track.ownedPieces.count) / \(track.pieceCount)")
+                                .font(.system(size: 10)).foregroundStyle(MLPalette.muted)
+                            ProgressBarView(value: Double(track.ownedPieces.count) / Double(track.pieceCount))
+                        }
+                        Button(vm.canContinueCollecting(trackId: track.id) ? "集める" : "見る") { vm.continueCollecting(trackId: track.id) }
+                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(MLPalette.primary)
+                            .padding(10).background(MLPalette.lilac, in: Capsule())
+                            .accessibilityLabel("\(track.displayTitle)の\(vm.canContinueCollecting(trackId: track.id) ? "ピースを集める" : "進み具合を見る")")
+                    }
+                }
+            }.padding(18).mlCard().padding(.bottom, 18)
+        } else if guideFinished {
+            Button("はじめての方へ · 使い方を見る") { guideStep = 0; guideFinished = false }
+                .font(.system(size: 11)).foregroundStyle(MLPalette.muted).padding(.bottom, 14)
+        }
+    }
+
+    private var discoveryBanner: some View {
+        Button { vm.activeTab = .melody } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 42)).foregroundStyle(Color(hex: "FFDF8F"))
+                    .shadow(color: MLPalette.shadow.opacity(0.25), radius: 2, y: 3)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("まだ知らない、好きな音に。")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("あなたの世界を広げるメロディを。")
+                        .font(.system(size: 10))
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right")
+            }
+            .foregroundStyle(.white)
+            .padding(20)
+            .background(MLPalette.button, in: RoundedRectangle(cornerRadius: 24))
+            .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.5)))
+            .mlShadow()
+        }
+        .buttonStyle(MLPressButtonStyle()).padding(.top, 20)
     }
 
     // MARK: - Header
@@ -29,16 +122,21 @@ struct HomeView: View {
             ZStack(alignment: .topTrailing) {
                 // マイページで設定したアイコン（無ければ名前の頭文字）
                 UserAvatar(image: vm.avatarUIImage(), name: vm.profile.displayName ?? "", size: 50)
-                    .shadow(color: Color(hex: "7248E0").opacity(0.15), radius: 8, y: 4)
+                    .shadow(color: Color(hex: "A27BC8").opacity(0.15), radius: 8, y: 4)
                 if let deco = vm.equippedDecoration,
                    let item = vm.shopItems.first(where: { $0.id == deco }) {
                     Text(item.icon).font(.system(size: 16)).offset(x: 6, y: -6)
                 }
             }
 
-            Text(vm.profile.displayName ?? vm.user?.name ?? "StreetMelodyユーザー")
-                .font(.system(size: 17, weight: .black)).foregroundStyle(.primary)
-                .lineLimit(1).minimumScaleFactor(0.75)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("YOUR DAILY SOUNDTRACK")
+                    .font(.system(size: 7, weight: .semibold)).tracking(1.2)
+                    .foregroundStyle(MLPalette.muted)
+                Text("こんにちは、\(vm.profile.displayName ?? vm.user?.name ?? "音楽好き")さん ☀︎")
+                    .font(.system(size: 15, weight: .bold)).foregroundStyle(MLPalette.ink)
+                    .lineLimit(2).minimumScaleFactor(0.8)
+            }
             Spacer()
             coinPill
         }
@@ -48,10 +146,10 @@ struct HomeView: View {
     private var levelBar: some View {
         let lv = vm.levelInfo()
         return HStack(spacing: 10) {
-            Text("Lv.\(lv.level)").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+            Text("Lv.\(lv.level)").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
             ProgressBarView(value: Double(lv.current) / Double(max(lv.next, 1))).frame(height: 6)
             Text("あと\(lv.next - lv.current) EXP")
-                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B29ABC"))
                 .lineLimit(1).fixedSize()
         }
     }
@@ -59,11 +157,11 @@ struct HomeView: View {
     private var coinPill: some View {
         HStack(spacing: 6) {
             CoinIcon(size: 18)
-            Text("\(vm.coins)").font(.system(size: 12, weight: .black)).foregroundStyle(.primary)
+            Text("\(vm.coins)").font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink)
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(Color(hex: "EDE8FF"), in: Capsule())
-        .overlay(Capsule().stroke(Color(hex: "E0D8F7")))
+        .background(Color(hex: "EEE0F2"), in: Capsule())
+        .overlay(Capsule().stroke(Color(hex: "EADCE7")))
     }
 
     // MARK: - Notification banner
@@ -77,23 +175,23 @@ struct HomeView: View {
                     if vm.notifyImmediate {
                         Text("NEW").font(.system(size: 9, weight: .black)).foregroundStyle(.white)
                             .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Color(hex: "7248E0"), in: RoundedRectangle(cornerRadius: 10))
+                            .background(Color(hex: "A27BC8"), in: RoundedRectangle(cornerRadius: 10))
                     } else {
                         Text("🔕").font(.system(size: 16))
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("今日\(pending)件のメロディが届いています")
-                            .font(.system(size: 12, weight: .black)).foregroundStyle(.primary)
+                            .font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink)
                         Text(vm.notifyImmediate
                              ? "パズル候補を確認しましょう"
                              : "即時通知オフ — まとめ通知でお知らせします")
-                            .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                            .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     }
                     Spacer()
                     Text("確認する").font(.system(size: 11, weight: .black))
-                        .foregroundStyle(Color(hex: "7248E0"))
+                        .foregroundStyle(Color(hex: "A27BC8"))
                         .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Color(hex: "EDE8FF"), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Color(hex: "EEE0F2"), in: RoundedRectangle(cornerRadius: 12))
                 }
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .mlCard(radius: 18)
@@ -101,7 +199,7 @@ struct HomeView: View {
                     .strokeBorder(LinearGradient(colors: [Color(hex: "9670F0").opacity(0.55), Color(hex: "FF8FB5").opacity(0.45)],
                                                  startPoint: .leading, endPoint: .trailing), lineWidth: 1.2))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MLPressButtonStyle())
             .padding(.bottom, 14)
         }
     }
@@ -117,17 +215,17 @@ struct HomeView: View {
                     Text(np.service.displayName)
                         .font(.system(size: 9, weight: .black)).foregroundStyle(.white)
                         .padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(Color(hex: "7248E0"), in: Capsule())
+                        .background(Color(hex: "A27BC8"), in: Capsule())
                     VStack(alignment: .leading, spacing: 2) {
                         Text(np.track.title)
-                            .font(.system(size: 14, weight: .black)).foregroundStyle(.primary).lineLimit(1)
+                            .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink).lineLimit(1)
                         if let a = np.track.artist, !a.isEmpty {
-                            Text(a).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                            Text(a).font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694")).lineLimit(1)
                         }
                     }
                     Spacer()
                     Text("♪ 再生中").font(.system(size: 9, weight: .black))
-                        .foregroundStyle(np.track.isPlaying ? Color(hex: "1A9E6E") : Color(hex: "B8ACD6"))
+                        .foregroundStyle(np.track.isPlaying ? Color(hex: "1A9E6E") : Color(hex: "B29ABC"))
                 }
                 HStack(spacing: 22) {
                     Button { vm.musicPrevious() } label: {
@@ -152,13 +250,13 @@ struct HomeView: View {
                                   : vm.nowPlayingShareMode == "public" ? "共有: 公開" : "共有する"
                         Text(label)
                             .font(.system(size: 11, weight: .black))
-                            .foregroundStyle(on ? Color(hex: "7B6F8A") : .white)
+                            .foregroundStyle(on ? Color(hex: "8D7694") : .white)
                             .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(on ? Color(hex: "EDE8FF") : Color(hex: "7248E0"),
+                            .background(on ? Color(hex: "EEE0F2") : Color(hex: "A27BC8"),
                                         in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
-                .foregroundStyle(Color(hex: "7248E0"))
+                .foregroundStyle(Color(hex: "A27BC8"))
             }
             .padding(16).mlCard()
             .padding(.bottom, 14)
@@ -172,30 +270,30 @@ struct HomeView: View {
                     if let hero = vm.heroTrack {
                         ArtBlockView(track: hero)
                     } else {
-                        RoundedRectangle(cornerRadius: 18).fill(Color(hex: "EDE8FF"))
+                        Image("PastelRoom").resizable().scaledToFill().clipShape(RoundedRectangle(cornerRadius: 18))
                     }
                 }
                 .frame(width: 120, height: 120)
 
                 VStack(alignment: .leading, spacing: 9) {
-                    Text("今日のメロディ").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    Text("今日のメロディ").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     Text(vm.heroTrack?.displayTitle ?? "—")
-                        .font(.system(size: 14, weight: .black)).lineLimit(2).foregroundStyle(.primary)
+                        .font(.system(size: 14, weight: .black)).lineLimit(2).foregroundStyle(MLPalette.ink)
                     if let hero = vm.heroTrack {
                         HStack(alignment: .lastTextBaseline, spacing: 4) {
                             Text("\(hero.ownedPieces.count) / \(hero.pieceCount)")
-                                .font(.system(size: 17, weight: .black)).foregroundStyle(.primary)
-                            Text("ピース").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                                .font(.system(size: 17, weight: .black)).foregroundStyle(MLPalette.ink)
+                            Text("ピース").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                         }
                         ProgressBarView(value: Double(hero.ownedPieces.count) / Double(max(hero.pieceCount, 1)))
                         let rem = max(hero.pieceCount - hero.ownedPieces.count, 0)
                         Text(rem > 0 ? "あと\(rem)ピースで完成！· プレイリストを見る ›" : "完成！· プレイリストを見る ›")
-                            .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(2)
+                            .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694")).lineLimit(2)
                     }
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .padding(16).mlCard().padding(.bottom, 14)
     }
 
@@ -204,29 +302,29 @@ struct HomeView: View {
     private var collectionPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("コレクション").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                Text("コレクション").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                 Spacer()
                 Button("すべて見る") { vm.activeTab = .collection }
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
             }
             HStack(spacing: 10) {
                 let completed = vm.tracks.values.filter { $0.isComplete }.count
                 statTile(label: "曲パズル",    value: "\(completed) / \(vm.tracks.count)")
-                statTile(label: "アーティスト", value: "\(vm.artistGroups.filter { $0.completed == $0.tracks.count && !$0.tracks.isEmpty }.count) / \(vm.artistGroups.count)")
-                statTile(label: "コイン",      value: "\(vm.coins)")
+                statTile(label: "アーティスト", tint: MLPalette.rose, value: "\(vm.artistGroups.filter { $0.completed == $0.tracks.count && !$0.tracks.isEmpty }.count) / \(vm.artistGroups.count)")
+                statTile(label: "コイン", tint: MLPalette.honey, value: "\(vm.coins)")
             }
         }
         .padding(16).mlCard().padding(.bottom, 14)
     }
 
-    private func statTile(label: String, value: String) -> some View {
+    private func statTile(label: String, tint: Color = MLPalette.lilac, value: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(label).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
-            Text(value).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+            Text(label).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
+            Text(value).font(.system(size: 20, weight: .bold)).foregroundStyle(MLPalette.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10).padding(.vertical, 12)
-        .mlInset(radius: 18)
+        .mlInset(radius: 18, tint: tint)
     }
 
     // MARK: - Mission panel
@@ -237,23 +335,23 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         Text("\(vm.mission?.label ?? "デイリー")ミッション")
-                            .font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
-                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                            .font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
+                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
                     }
                     ProgressBarView(value: vm.mission?.progress ?? 0)
                     let claimed = vm.mission?.claimed ?? false
                     Text(claimed
                          ? "🎉 達成済み！メロディコイン +\(vm.mission?.rewardCoins ?? 30) を獲得しました"
                          : "ピースを\(vm.mission?.target ?? 5)個獲得しよう（達成でコイン +\(vm.mission?.rewardCoins ?? 30)）")
-                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                        .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                         .multilineTextAlignment(.leading)
                 }
                 Spacer()
                 Text("\(vm.mission?.displayCurrent ?? 0) / \(vm.mission?.target ?? 5)")
-                    .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                    .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MLPressButtonStyle())
         .padding(16).mlCard().padding(.bottom, 14)
     }
 
@@ -262,10 +360,10 @@ struct HomeView: View {
     private var recentTracksPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("最近届いた曲").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                Text("最近届いた曲").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                 Spacer()
                 Button("すべて見る") { vm.activeTab = .melody }
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
             }
             // Dictionary.values は順序が不定なので、解放済み（=サムネイルを持つ曲）を
             // 優先しつつ id で安定ソートし、毎回同じ並びになるようにする
@@ -280,7 +378,7 @@ struct HomeView: View {
             )
             if recentTracks.isEmpty {
                 Text("まだピースを受け取った曲がありません")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
             } else {
                 LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 12) {
@@ -291,13 +389,13 @@ struct HomeView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 ArtBlockView(track: track).aspectRatio(1, contentMode: .fit)
                                 Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
-                                    .font(.system(size: 11, weight: .black)).lineLimit(1).foregroundStyle(.primary)
+                                    .font(.system(size: 11, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
                                 Text(track.displayArtist)
                                     .font(.system(size: 10, weight: .heavy))
-                                    .foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                                    .foregroundStyle(Color(hex: "8D7694")).lineLimit(1)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(MLPressButtonStyle())
                     }
                 }
             }

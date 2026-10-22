@@ -11,8 +11,8 @@ struct MelodyMixView: View {
     @State private var partnerSeed = ""
     @State private var mixed = false
 
-    private let purple = Color(hex: "7248E0")
-    private let lilac = Color(hex: "EDE8FF")
+    private let purple = Color(hex: "A27BC8")
+    private let lilac = Color(hex: "EEE0F2")
 
     var body: some View {
         ScrollView {
@@ -36,7 +36,7 @@ struct MelodyMixView: View {
                 }
             }
             ToolbarItem(placement: .principal) {
-                Text("メロディミックス").font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                Text("メロディミックス").font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
             }
         }
         .onDisappear { vm.stopMelody() }
@@ -45,9 +45,9 @@ struct MelodyMixView: View {
     private var introCard: some View {
         VStack(spacing: 6) {
             Text("🎶 2人のメロディを重ねよう")
-                .font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+                .font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
             Text("お互いのテーマを混ぜて鳴らすと、2人だけのミックスが生まれます。\nこれがベストフレンド成立の儀式になります。")
-                .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity).padding(18).mlCard()
@@ -61,20 +61,20 @@ struct MelodyMixView: View {
 
     private var partnerCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("相手のメロディ").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "3D2F60"))
+            Text("相手のメロディ").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "49335F"))
             HStack(spacing: 8) {
                 TextField("相手のコード/シード（お試し可）", text: $partnerSeed)
                     .font(.system(size: 13, weight: .heavy))
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .padding(.horizontal, 12).padding(.vertical, 11)
-                    .background(Color(hex: "F5F0FF"), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color(hex: "FFF4ED"), in: RoundedRectangle(cornerRadius: 12))
                 Button("ランダム") { partnerSeed = UUID().uuidString }
                     .font(.system(size: 11, weight: .black)).foregroundStyle(purple)
                     .padding(.horizontal, 10).padding(.vertical, 11)
                     .background(lilac, in: RoundedRectangle(cornerRadius: 12))
             }
             Text("音色: \(vm.timbreName(forSeed: partnerSeed))")
-                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             Button { vm.playPartnerMelody(seed: partnerSeed) } label: {
                 Label("相手のメロディを試聴", systemImage: "music.note")
                     .font(.system(size: 12, weight: .black)).foregroundStyle(purple)
@@ -102,9 +102,9 @@ struct MelodyMixView: View {
     private var resultCard: some View {
         VStack(spacing: 8) {
             Text("🎉 2人のミックスが鳴りました")
-                .font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
+                .font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
             Text("（将来：ここでお互いが合意するとベストフレンドが成立します）")
-                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 .multilineTextAlignment(.center)
             Button { vm.playMelodyMix(partnerSeed: partnerSeed) } label: {
                 Text("もう一度ミックスを聴く")
@@ -120,8 +120,8 @@ struct MelodyMixView: View {
         HStack(spacing: 12) {
             Circle().fill(lilac).frame(width: 48, height: 48).overlay(Text("🎵").font(.title3))
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 13, weight: .black)).foregroundStyle(.primary)
-                Text(subtitle).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                Text(title).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
+                Text(subtitle).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
             }
             Spacer()
             Button(action: play) {

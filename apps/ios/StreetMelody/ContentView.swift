@@ -57,7 +57,7 @@ struct ContentView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color(hex: "3D2F60").opacity(0.95), in: Capsule())
+                        .background(Color(hex: "49335F").opacity(0.95), in: Capsule())
                         .shadow(radius: 8, y: 4)
                         .padding(.bottom, 90)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -91,7 +91,8 @@ struct ContentView: View {
                 }
             }
         }
-        .tint(Color(hex: "7248E0"))
+        .tint(MLPalette.primary)
+        .toolbarBackground(MLPalette.cream, for: .tabBar)
     }
 
     /// タブの選択。移ったら出会いの導線を片付ける（自作バーと同じ動き）
@@ -159,17 +160,22 @@ struct BottomNavBar: View {
                         Text(tab.rawValue)
                             .font(.system(size: 9, weight: .heavy))
                     }
-                    .foregroundStyle(vm.activeTab == tab ? Color(hex: "7248E0") : Color(hex: "B8ACD6"))
+                    .foregroundStyle(vm.activeTab == tab ? Color.white : MLPalette.muted)
                     .frame(maxWidth: .infinity, minHeight: 54)
-                    .background(vm.activeTab == tab ? Color(hex: "7248E0").opacity(0.12) : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 17))
+                    .background {
+                        if vm.activeTab == tab {
+                            RoundedRectangle(cornerRadius: 17).fill(MLPalette.button)
+                                .overlay(RoundedRectangle(cornerRadius: 17).strokeBorder(.white.opacity(0.5)))
+                                .mlShadow(.low)
+                        }
+                    }
                 }
             }
         }
         .padding(8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+        .background(MLPalette.cream, in: RoundedRectangle(cornerRadius: 24))
         .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.6)))
-        .shadow(color: Color(hex: "7248E0").opacity(0.10), radius: 16, y: 8)
+        .shadow(color: Color(hex: "A27BC8").opacity(0.10), radius: 16, y: 8)
         .padding(.horizontal, 14)
         .padding(.bottom, 4)
     }

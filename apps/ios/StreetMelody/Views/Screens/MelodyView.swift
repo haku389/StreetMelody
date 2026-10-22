@@ -8,6 +8,8 @@ struct MelodyView: View {
             MLTabTitle(title: "メロディ", subtitle: "ピースを選んでパズルを完成させよう")
         } content: {
             VStack(spacing: 0) {
+                MLTabSummary(symbol: "music.note", title: "ひとつの出会いから、次の好きへ。", caption: "気になる曲を選んで、パズルに新しいピースを。", metrics: [("受け取れる出会い", "\(vm.encounters.filter { vm.cooldownRemaining(for: $0.id) == 0 }.count)件"), ("今日のピース", "\(vm.todayCollected.count)枚")])
+                    .padding(.bottom, 18)
                 if vm.encounters.isEmpty {
                     emptyState
                 } else if vm.allEncountersDone {
@@ -36,21 +38,21 @@ struct MelodyView: View {
         VStack(spacing: 14) {
             VStack(spacing: 8) {
                 Text("🎶 今日の出会いは選び終わりました")
-                    .font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+                    .font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text("また新しい人とすれちがうと、次の出会いが届きます")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity).padding(20).mlCard()
 
             if vm.todayCollected.isEmpty {
                 Text("今日はまだピースを取得していません")
-                    .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     .frame(maxWidth: .infinity).padding(20).mlCard()
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("今日取得したピース（\(vm.todayCollected.count)）")
-                        .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                        .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                     ForEach(vm.todayCollected) { item in
                         summaryRow(item)
                     }
@@ -66,23 +68,23 @@ struct MelodyView: View {
             if let t = track {
                 ArtBlockView(track: t, cornerRadius: 12).frame(width: 52, height: 52)
             } else {
-                RoundedRectangle(cornerRadius: 12).fill(Color(hex: "EDE8FF")).frame(width: 52, height: 52)
+                RoundedRectangle(cornerRadius: 12).fill(Color(hex: "EEE0F2")).frame(width: 52, height: 52)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text("🕒 \(Self.timeFmt.string(from: item.collectedAt)) · 👤 \(item.fromUserName) · 📍\(item.locationLabel)")
-                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A")).lineLimit(1)
+                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694")).lineLimit(1)
                 Text(track?.displayArtist ?? "？？？")
-                    .font(.system(size: 13, weight: .black)).foregroundStyle(.primary).lineLimit(1)
+                    .font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink).lineLimit(1)
                 Text(track?.displayTitle ?? "？？？")
-                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "7248E0")).lineLimit(1)
+                    .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8")).lineLimit(1)
                 // 取得した“その時点”の所持ピース数（最終結果ではない）
                 Text("この時 \(item.ownedCountAtCollection)/\(track?.pieceCount ?? 24) ピース")
-                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B29ABC"))
             }
             Spacer()
             if let t = track {
                 Button { vm.navigate(to: t.isUnlocked ? .puzzle(trackId: t.id) : .mystery(trackId: t.id)) } label: {
-                    Image(systemName: "chevron.right").font(.system(size: 14, weight: .black)).foregroundStyle(Color(hex: "B8ACD6"))
+                    Image(systemName: "chevron.right").font(.system(size: 14, weight: .black)).foregroundStyle(Color(hex: "B29ABC"))
                 }
             }
         }
@@ -102,13 +104,13 @@ struct MelodyView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("\(idx + 1) / \(total) 件目の出会い")
-                    .font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                    .font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
                 Spacer()
                 HStack(spacing: 4) {
                     ForEach(0..<total, id: \.self) { i in
                         let done = vm.encounterCooldowns[vm.encounters[i].id] != nil
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(done ? Color(hex: "1A9E6E") : (i == idx ? Color(hex: "7248E0") : Color(hex: "7248E0").opacity(0.2)))
+                            .fill(done ? Color(hex: "1A9E6E") : (i == idx ? Color(hex: "A27BC8") : Color(hex: "A27BC8").opacity(0.2)))
                             .frame(width: i == idx ? 18 : 8, height: 6)
                             .animation(.spring(duration: 0.3), value: idx)
                     }
@@ -118,23 +120,23 @@ struct MelodyView: View {
             if let enc = enc {
                 HStack(spacing: 10) {
                     Circle()
-                        .fill(Color(hex: "7248E0"))
+                        .fill(Color(hex: "A27BC8"))
                         .frame(width: 36, height: 36)
                         .overlay(Text("\(idx + 1)").font(.system(size: 13, weight: .black)).foregroundStyle(.white))
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(enc.fromUserName) さん")
-                            .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
-                        Text("📍 \(enc.locationLabel) · \(enc.candidates.count)曲")
-                            .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                            .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
+                        Label("\(enc.locationLabel) · \(enc.candidates.count)曲", systemImage: "mappin.and.ellipse")
+                            .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     }
                     Spacer()
 
                     if vm.friends.contains(where: { $0.userId == enc.fromUserId }) {
-                        Text("🎵 フレンド")
-                            .font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "7248E0"))
+                        Label("フレンド", systemImage: "person.2.fill")
+                            .font(.system(size: 10, weight: .black)).foregroundStyle(Color(hex: "A27BC8"))
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(Color(hex: "7248E0").opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                            .background(Color(hex: "A27BC8").opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                     }
                 }
 
@@ -144,30 +146,29 @@ struct MelodyView: View {
                         Text("⏳").font(.system(size: 14))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(enc.fromUserName) さんとのクールタイム中")
-                                .font(.system(size: 11, weight: .black)).foregroundStyle(.primary)
+                                .font(.system(size: 11, weight: .black)).foregroundStyle(MLPalette.ink)
                             Text("あと \(vm.formatCooldown(cooldown)) で再度受信できます")
-                                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                         }
                     }
                     .padding(10)
-                    .background(Color(hex: "7248E0").opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "7248E0").opacity(0.25)))
+                    .background(Color(hex: "A27BC8").opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "A27BC8").opacity(0.25)))
                 } else {
                     Text("パズルを選んで「このパズルにする」を押してください")
                         .font(.system(size: 11, weight: .heavy))
-                        .foregroundStyle(Color(hex: "7B6F8A"))
+                        .foregroundStyle(Color(hex: "8D7694"))
                         .multilineTextAlignment(.center)
                 }
 
                 // すれ違った順にしか選べない（前の出会いには戻れない）
                 Text("すれ違った順にパズルを選びます（前の人には戻れません）")
-                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+                    .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B29ABC"))
                     .padding(.top, 4)
             }
         }
         .padding(14)
-        .background(Color(hex: "7248E0").opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "7248E0").opacity(0.15)))
+        .mlCard(radius: 22, elevation: .low)
         .padding(.bottom, 14)
     }
 
@@ -207,12 +208,12 @@ struct MelodyView: View {
                             .background(.black.opacity(0.45), in: Capsule())
                             .padding(8)
                     }
-                    .shadow(color: Color(hex: "7248E0").opacity(0.15), radius: 16, y: 8)
+                    .shadow(color: Color(hex: "A27BC8").opacity(0.15), radius: 16, y: 8)
 
                 Button {
                     vm.carouselViewMode = vm.carouselViewMode == "pieces" ? "mosaic" : "pieces"
                 } label: {
-                    Text(vm.carouselViewMode == "pieces" ? "🎵 フル表示" : "🧩 ピース確認")
+                    Label(vm.carouselViewMode == "pieces" ? "フル表示" : "ピース確認", systemImage: vm.carouselViewMode == "pieces" ? "music.note" : "square.grid.3x3")
                         .font(.system(size: 9, weight: .black)).foregroundStyle(.white)
                         .padding(.horizontal, 10).padding(.vertical, 4)
                         .background(.black.opacity(0.45), in: Capsule())
@@ -222,12 +223,12 @@ struct MelodyView: View {
 
             VStack(spacing: 4) {
                 Text("\(candidate.sourceSlot) · \(String(repeating: "★", count: min(candidate.rarity, 5)))")
-                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 Text(track?.displayArtist ?? "—")
-                    .font(.system(size: 15, weight: .black)).foregroundStyle(.primary)
+                    .font(.system(size: 15, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text(track?.displayTitle ?? "—")
                     .font(.system(size: 13, weight: .heavy))
-                    .foregroundStyle(Color(hex: "7248E0"))
+                    .foregroundStyle(Color(hex: "A27BC8"))
             }
             .padding(.top, 12)
         }
@@ -247,15 +248,15 @@ struct MelodyView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18, weight: .heavy))
-                    .foregroundStyle(vm.carouselIndex > 0 ? Color(hex: "7248E0") : Color(hex: "B8ACD6"))
+                    .foregroundStyle(vm.carouselIndex > 0 ? Color(hex: "A27BC8") : Color(hex: "B29ABC"))
                     .frame(width: 40, height: 40)
-                    .background(Color(hex: "EDE8FF"), in: Circle())
-                    .overlay(Circle().stroke(Color(hex: "E0D8F7")))
+                    .background(Color(hex: "EEE0F2"), in: Circle())
+                    .overlay(Circle().stroke(Color(hex: "EADCE7")))
             }
             .disabled(vm.carouselIndex <= 0)
 
             Text("\(idx + 1) / \(candidates.count)")
-                .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
 
             Button {
                 if vm.carouselIndex < candidates.count - 1 {
@@ -265,10 +266,10 @@ struct MelodyView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 18, weight: .heavy))
-                    .foregroundStyle(vm.carouselIndex < candidates.count - 1 ? Color(hex: "7248E0") : Color(hex: "B8ACD6"))
+                    .foregroundStyle(vm.carouselIndex < candidates.count - 1 ? Color(hex: "A27BC8") : Color(hex: "B29ABC"))
                     .frame(width: 40, height: 40)
-                    .background(Color(hex: "EDE8FF"), in: Circle())
-                    .overlay(Circle().stroke(Color(hex: "E0D8F7")))
+                    .background(Color(hex: "EEE0F2"), in: Circle())
+                    .overlay(Circle().stroke(Color(hex: "EADCE7")))
             }
             .disabled(vm.carouselIndex >= candidates.count - 1)
         }
@@ -292,17 +293,17 @@ struct MelodyView: View {
                 Button { vm.startPreview(trackId: tid) } label: {
                     Text(previewLeft > 0 ? "▶ 少し聴く（あと\(previewLeft)回）" : "本日の試聴回数を使い切りました")
                         .font(.system(size: 13, weight: .black))
-                        .foregroundStyle(canPreview ? .white : Color(hex: "B8ACD6"))
+                        .foregroundStyle(canPreview ? .white : Color(hex: "B29ABC"))
                         .frame(maxWidth: .infinity).padding(.vertical, 13)
                         .background(
                             canPreview
-                                ? LinearGradient(colors: [Color(hex: "79C7FF"), Color(hex: "5BA8F5")], startPoint: .top, endPoint: .bottom)
-                                : LinearGradient(colors: [Color(hex: "EDE8FF"), Color(hex: "EDE8FF")], startPoint: .top, endPoint: .bottom),
+                                ? LinearGradient(colors: [Color(hex: "B7D3E5"), Color(hex: "8CB4D0")], startPoint: .top, endPoint: .bottom)
+                                : LinearGradient(colors: [Color(hex: "EEE0F2"), Color(hex: "EEE0F2")], startPoint: .top, endPoint: .bottom),
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous)
                         )
                         .mlGlow(canPreview ? Color(hex: "3B8FE8") : .clear)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
                 .disabled(!canPreview)
             }
 
@@ -317,14 +318,14 @@ struct MelodyView: View {
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
                     .background(
                         onCooldown
-                            ? LinearGradient(colors: [Color(hex: "B8ACD6"), Color(hex: "B8ACD6")], startPoint: .top, endPoint: .bottom)
-                            : LinearGradient(colors: [Color(hex: "9670F0"), Color(hex: "7248E0")], startPoint: .top, endPoint: .bottom),
+                            ? LinearGradient(colors: [Color(hex: "B29ABC"), Color(hex: "B29ABC")], startPoint: .top, endPoint: .bottom)
+                            : LinearGradient(colors: [Color(hex: "C3A2E4"), Color(hex: "A27BC8")], startPoint: .top, endPoint: .bottom),
                         in: RoundedRectangle(cornerRadius: 20, style: .continuous)
                     )
-                    .mlGlow(onCooldown ? .clear : Color(hex: "7248E0"))
+                    .mlGlow(onCooldown ? .clear : Color(hex: "A27BC8"))
             }
             .disabled(onCooldown)
-            .buttonStyle(.plain)
+            .buttonStyle(MLPressButtonStyle())
         }
         .padding(.bottom, 24)
     }
@@ -335,9 +336,9 @@ struct MelodyView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("今日の出会い")
-                    .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                    .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text("\(vm.encounters.count)件")
-                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                    .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 Spacer()
             }
             .padding(.bottom, 4)
@@ -355,8 +356,8 @@ struct MelodyView: View {
                     HStack(spacing: 12) {
                         Circle()
                             .fill(onCooldown ? Color(hex: "1A9E6E").opacity(0.15)
-                                  : isActive ? Color(hex: "7248E0")
-                                  : Color(hex: "7248E0").opacity(0.12))
+                                  : isActive ? Color(hex: "A27BC8")
+                                  : Color(hex: "A27BC8").opacity(0.12))
                             .frame(width: 36, height: 36)
                             .overlay(
                                 Group {
@@ -367,17 +368,17 @@ struct MelodyView: View {
                                         Text("🔒").font(.system(size: 14))
                                     } else {
                                         Text("\(i + 1)").font(.system(size: 14, weight: .black))
-                                            .foregroundStyle(isActive ? .white : Color(hex: "7248E0"))
+                                            .foregroundStyle(isActive ? .white : Color(hex: "A27BC8"))
                                     }
                                 }
                             )
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(enc.fromUserName)\(isFriend ? " 🎵" : "")")
-                                .font(.system(size: 12, weight: .black)).foregroundStyle(.primary)
+                                .font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink)
                                 .lineLimit(1)
-                            Text("📍 \(enc.locationLabel) · \(enc.candidates.count)曲")
-                                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                            Label("\(enc.locationLabel) · \(enc.candidates.count)曲", systemImage: "mappin.and.ellipse")
+                                .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                         }
 
                         Spacer()
@@ -391,24 +392,24 @@ struct MelodyView: View {
                                 .background(Color(hex: "1A9E6E").opacity(0.1), in: Capsule())
                         } else if isActive {
                             Text("→ 今ここ")
-                                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "7248E0"))
+                                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "A27BC8"))
                         } else if isLocked {
                             Text("順番待ち")
-                                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B8ACD6"))
+                                .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "B29ABC"))
                         } else {
                             Text("受信可")
                                 .font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "1A9E6E"))
                         }
                     }
                     .padding(.horizontal, 12).padding(.vertical, 10)
-                    .background(isActive ? Color(hex: "7248E0").opacity(0.06) : Color.clear,
+                    .background(isActive ? Color(hex: "A27BC8").opacity(0.06) : Color.clear,
                                 in: RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14)
-                        .stroke(isActive ? Color(hex: "7248E0") : Color(hex: "E0D8F7"),
+                        .stroke(isActive ? Color(hex: "A27BC8") : Color(hex: "EADCE7"),
                                 lineWidth: isActive ? 2 : 1))
                     .opacity(isLocked ? 0.45 : 1)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MLPressButtonStyle())
                 .disabled(isLocked)
             }
         }
@@ -421,9 +422,9 @@ struct MelodyView: View {
         VStack(spacing: 16) {
             Text("🎵").font(.system(size: 48))
             Text("まだ出会いがありません")
-                .font(.system(size: 14, weight: .black)).foregroundStyle(.primary)
+                .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
             Text("外出してすれちがいを待ちましょう")
-                .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "7B6F8A"))
+                .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
