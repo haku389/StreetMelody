@@ -72,6 +72,9 @@ actor SupabaseClient {
     private struct SavedSession: Codable { let refreshToken: String; let userId: String }
 
     var isSignedIn: Bool { userId != nil && accessToken != nil }
+    /// 本人として入っているか。起動時に圏外で鍵を取り直せなかったときも true
+    /// （アプリはログイン必須なので、通信できないだけで閉め出さない）
+    var hasSession: Bool { userId != nil }
 
     enum AuthError: Error { case notSignedIn, http(Int) }
 
@@ -81,10 +84,23 @@ actor SupabaseClient {
     /// 無ければ未ログインのまま（匿名ログインはしない）。
     func bootstrap() async {
         guard let saved = loadSaved() else { return }
-        if (try? await refresh(saved.refreshToken)) == nil {
-            // 期限切れ・取り消し済み。未ログインに戻す
+        do {
+            _ = try await refresh(saved.refreshToken)
+        } catch AuthError.http(let code) where (400..<500).contains(code) {
+            // 期限切れ・取り消し済み（サーバーが断った）。未ログインに戻す
             signOut()
+        } catch {
+            // 通信できないだけ。本人のまま入れておく。鍵は次に通信するとき取り直す（ensureAccessToken）
+            userId = saved.userId
+            refreshToken = saved.refreshToken
         }
+    }
+
+    /// 鍵が無ければ取り直す（起動時に圏外だったとき）。取れなければ false
+    private func ensureAccessToken() async -> Bool {
+        if accessToken != nil { return true }
+        guard let rt = refreshToken else { return false }
+        return (try? await refresh(rt)) != nil
     }
 
     /// メール＋パスワードでサインイン（別端末・再インストール後の復元に使う）。
@@ -346,7 +362,7 @@ actor SupabaseClient {
     /// ログインの鍵（1時間で切れる）が切れていたら、1回だけ取り直してやり直す。
     func rest(method: String, query: String, body: Data? = nil, prefer: String? = nil,
               schema: String = SupabaseClient.appSchema) async throws -> Data? {
-        guard accessToken != nil else { return nil }
+        guard await ensureAccessToken() else { return nil }
         guard let url = URL(string: baseURL + "/rest/v1/" + query) else { throw APIError.invalidURL }
         func send() async throws -> (Data, HTTPURLResponse?) {
             var req = URLRequest(url: url)
@@ -370,6 +386,18 @@ actor SupabaseClient {
             throw APIError.httpError(http.statusCode)
         }
         return data
+    }
+
+    // MARK: 曲カタログ
+
+    /// 曲ごとのサムネイル URL（streetmelody.tracks。ログインした人だけが読める）
+    func catalogThumbnails() async -> [String: String] {
+        struct Row: Decodable { let id: String; let thumbnail_url: String? }
+        guard let data = (try? await rest(method: "GET", query: "tracks?select=id,thumbnail_url")) ?? nil,
+              let rows = try? JSONDecoder().decode([Row].self, from: data) else { return [:] }
+        var out: [String: String] = [:]
+        for r in rows { if let u = r.thumbnail_url, !u.isEmpty { out[r.id] = u } }
+        return out
     }
 
     // MARK: 中継（workers/、streetmelody-relay）

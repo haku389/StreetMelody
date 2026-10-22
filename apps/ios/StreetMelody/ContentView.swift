@@ -36,6 +36,17 @@ struct ContentView: View {
                     .zIndex(10)
             }
 
+            // ログイン必須（StyleCare と同じ）。確かめ終わるまでは起動画面、
+            // ログインしていなければログイン画面を全面に出す（閉じられない）
+            if !vm.accountChecked {
+                LaunchCover().zIndex(30).transition(.opacity)
+            } else if vm.isGuestAccount || Self.previewLoginGate {
+                AccountLinkView(asGate: true)
+                    .environmentObject(vm)
+                    .zIndex(30)
+                    .transition(.opacity)
+            }
+
             // 今日のメロディのプレゼント（1日1回。タブバーより上に出す）
             if let count = vm.melodyGiftCount {
                 MelodyGiftOverlay(count: count)
@@ -86,7 +97,17 @@ struct ContentView: View {
         .onChange(of: vm.isLoading) { _, loading in if !loading { presentGiftSoon() } }
         .onChange(of: vm.showProfileEdit) { _, open in if !open { presentGiftSoon() } }
         .onChange(of: scenePhase) { _, phase in if phase == .active { presentGiftSoon() } }
+        .onChange(of: vm.isGuestAccount) { _, guest in if !guest { presentGiftSoon() } }
+        .animation(.easeOut(duration: 0.25), value: vm.isGuestAccount)
+        .animation(.easeOut(duration: 0.25), value: vm.accountChecked)
     }
+
+    /// 開発中だけ: 起動引数 -previewLoginGate でログイン画面を出す（ログアウトせずに見た目を確かめる）
+    #if DEBUG
+    private static let previewLoginGate = ProcessInfo.processInfo.arguments.contains("-previewLoginGate")
+    #else
+    private static let previewLoginGate = false
+    #endif
 
     /// 画面が落ち着いてから出す（ホームが描かれる前に被せない）
     private func presentGiftSoon() {
@@ -200,5 +221,23 @@ struct BottomNavBar: View {
         .shadow(color: Color(hex: "A27BC8").opacity(0.10), radius: 16, y: 8)
         .padding(.horizontal, 14)
         .padding(.bottom, 4)
+    }
+}
+
+/// 起動直後、ログインしているかを確かめているあいだの画面（ログイン画面を一瞬出さないため）
+private struct LaunchCover: View {
+    var body: some View {
+        ZStack {
+            MLBackground()
+            VStack(spacing: 14) {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(MLPalette.button)
+                    .frame(width: 80, height: 80)
+                    .overlay(Image(systemName: "music.note").font(.system(size: 36, weight: .black)).foregroundStyle(.white))
+                    .mlGlow()
+                ProgressView().tint(MLPalette.primary)
+            }
+        }
+        .ignoresSafeArea()
     }
 }

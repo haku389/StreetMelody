@@ -175,6 +175,8 @@ final class AppViewModel: ObservableObject {
     // MARK: Published - account（方式A: アカウント連携）
     @Published var accountEmail: String? = nil
     @Published var isGuestAccount: Bool = true
+    /// 起動時にログインしているかを確かめ終えたか（終わるまでは起動画面。ログイン画面を一瞬出さない）
+    @Published var accountChecked = false
 
     // MARK: Dependencies
 
@@ -274,28 +276,21 @@ final class AppViewModel: ObservableObject {
     func loadAll() async {
         isLoading = true
         defer { isLoading = false }
-        await withTaskGroup(of: Void.self) { group in
-            // 方式A: 保存済みのログイン（共通アカウント）があれば復帰する。
-            // 未ログイン・通信不可なら、端末の中のデータだけで動き続ける（非破壊）。
-            group.addTask { await SupabaseClient.shared.bootstrap() }
-            // カタログ（曲・サムネイルURL）のみライブAPIから取得し、seed に重ねる。
-            // user / collection / mission / encounter / playlist はバックエンドの
-            // per-user データ＋認証が未整備のため、当面 seed を使う（API稼働時の
-            // ゲストデータでプロトタイプ体験が劣化するのを避ける）。整備後に有効化する。
-            group.addTask { await self.loadTracks() }
-            // group.addTask { await self.loadUser() }
-            // group.addTask { await self.loadCollection() }
-            // group.addTask { await self.loadMission() }
-            // group.addTask { await self.loadEncounter() }
-            // group.addTask { await self.loadPlaylist() }
-        }
-        // すべての seed/API ロード後に保存済み進行を反映
+        // アプリはログイン必須（StyleCare と同じ）。まず保存済みのログイン（共通アカウント）で
+        // 復帰し、入っているかを決める。決まるまでは起動画面、入っていなければログイン画面を出す
+        await SupabaseClient.shared.bootstrap()
+        await refreshAccountState()
+        // カタログのサムネイル（ログインした人だけ読める）を seed に重ねる。
+        // user / collection / mission / encounter / playlist は当面 seed のまま
+        if !isGuestAccount { await loadTracks() }
+        // seed/カタログのあとに保存済み進行を反映
         restoreState()
         // 再生中の曲（ライブ）の購読を開始（連携済みサービスを監視）
         startNowPlayingObservation()
+        // ログインしていなければここまで。ログインしたら presentOnboardingIfNeeded が続きを読む
+        guard !isGuestAccount else { return }
         // 方式A: Supabase の自分の進行（所持ピース・解放）を seed/ローカルにマージ
         await mergeRemoteProgress()
-        await refreshAccountState()
         await loadFriends()
         await loadProfile()
         startNearbyExchange()   // すれちがい開始
@@ -307,16 +302,12 @@ final class AppViewModel: ObservableObject {
     }
 
     private func loadTracks() async {
-        // カタログ（DB/CDN）を取得し、seed トラックに「サムネイルURL」だけ重ねる。
-        // 進行状態（所持ピース・解放・ヒント）や youtubeVideoId/chorusStart は seed/保存を優先し、
-        // 画像の出所だけを DB/CDN に切り替える（API 不通時は seed/同梱画像のまま）。
-        guard let list = try? await repository.fetchTracks() else { return }
-        for apiTrack in list {
-            guard let remote = apiTrack.thumbnailUrl, !remote.isEmpty else { continue }
-            if var seedTrack = tracks[apiTrack.id] {
-                seedTrack.thumbnailUrl = remote
-                tracks[apiTrack.id] = seedTrack
-            }
+        // 曲カタログ（StyleCare のプロジェクトの streetmelody.tracks。ログインした人だけ読める）から
+        // seed トラックに「サムネイルURL」だけ重ねる。進行状態（所持ピース・解放・ヒント）や
+        // youtubeVideoId/chorusStart は seed/保存を優先する（読めないときは seed のまま）。
+        // Go サーバー（Cloud Run）はログインした人の鍵を持たないので、iPhone は DB を直接読む
+        for (id, url) in await SupabaseClient.shared.catalogThumbnails() {
+            tracks[id]?.thumbnailUrl = url
         }
     }
 
@@ -828,6 +819,7 @@ final class AppViewModel: ObservableObject {
 
     /// サインイン/連携の直後に呼ぶ。プロフィール未設定なら設定画面（オンボーディング）を出す。
     func presentOnboardingIfNeeded() async {
+        await loadTracks()      // カタログはログインした人だけ読める
         await loadProfile()
         await loadFriends()
         startNearbyExchange()   // ログインして user_id が決まったので、すれちがいを始める
@@ -1193,8 +1185,9 @@ final class AppViewModel: ObservableObject {
     /// 現在の認証状態を Published に反映。isGuestAccount は「ログインしていない」。
     func refreshAccountState() async {
         accountEmail = await SupabaseClient.shared.email
-        isGuestAccount = !(await SupabaseClient.shared.isSignedIn)
+        isGuestAccount = !(await SupabaseClient.shared.hasSession)
         friendCode = await SupabaseClient.shared.myFriendCode()
+        accountChecked = true
     }
 
     enum SignUpResult { case signedIn, needsConfirmation, failed(String) }

@@ -1245,7 +1245,7 @@ Webは変更せず、iOS / Androidの既存タブを対象に整えた。
 - 古い MelodyLien プロジェクトは無料プランの上限（同時に2つ）で起こせないため、当時 MCP で入れた記録（8組・8曲）から `supabase/migrations/20261022120000_streetmelody_catalog.sql` を作った。中身は iOS の seed と一致。サムネは YouTube の maxresdefault を引き金で作る（当時と同じ）。
 - カタログを Go サーバー（公開キー＝anon）に読ませるため、anon に `streetmelody` スキーマの USAGE を渡す。代わりに関数の PUBLIC の EXECUTE を外し（これから作る関数も既定で外す）、anon が触れるのはカタログ2表の SELECT だけにする。引き金は EXECUTE が無くても動くことを手元で確かめた。
 - 検査: `supabase/tests/02_catalog_checks.sql` を足した。`run.sh` は最後の1本の結果しか見ていなかった（`if run_all` の中では set -e が効かない）ので、1本ずつ失敗で抜けるように直した。守りを壊す検査 21件はすべて赤。
-- **本番への適用はまだ**（anon にスキーマを開ける変更なので、はくの確認待ち）。
+- （後で変えた）最初は anon に読ませる形で作ったが、はくの判断で「アプリはログイン必須」になったので、ログインした人だけ読める形に作り直してから本番に当てた（下の節）。
 - Go: `streetmelody` スキーマを Accept-Profile で読む（`SUPABASE_SCHEMA`、既定 `streetmelody`）。接続先を StyleCare のプロジェクトへ。`api/store/supabase_test.go`。Cloud Run への出し直しは、本番の DB に当ててから。
 - 音楽サービスの公式アイコン（はくが用意）を `Resources/ServiceIcons/` へ。YouTube Music の画像は中身が JPEG だったため PNG に変換した（そのままだとビルドで落ちる）。マイページで3つとも表示を確認。
 
@@ -1266,3 +1266,16 @@ Webは変更せず、iOS / Androidの既存タブを対象に整えた。
   - 「視差効果を減らす」の人には、動かさずに結果だけを出す。
   - 確かめ方: 録画（`simctl io recordVideo`）からコマを抜いて確認。明るすぎる点がブルームで黒い四角に化けた・きらめきが重なって白い雲になった・震えのあいだ光の円が箱の前に残った、の3つを直した。
   - 試すとき: その日の印 `streetmelody.melodyGift.lastDay` を消すと、もう一度出る。
+
+## 2026-10-22 — アプリをログイン必須に・曲カタログを本番へ
+
+はくの判断: 「ログインしていないと使えないように」＝アプリ全体（StyleCare と同じ）。
+
+- 起動するとまず保存済みのログインで復帰し、確かめ終わるまでは起動画面（`LaunchCover`）。ログインしていなければ、ログイン／新規登録の画面を全面に出して閉じられない（`AccountLinkView(asGate: true)`。アプリ名とひとことを上に）。ログアウトするとこの画面に戻る。
+- 起動時に圏外だっただけでログアウト扱いにしていた（更新の鍵の取り直しが通信で失敗すると signOut していた）。サーバーが断ったとき（4xx）だけ未ログインに戻し、通信できないときは本人のまま入れて、鍵は次に通信するとき取り直す（`hasSession` / `ensureAccessToken`）。ログイン必須にすると、圏外で閉め出してしまうため。
+- 曲カタログ: `20261022120000_streetmelody_catalog.sql` を「ログインした人だけ読める」形にして本番に当てた。anon はこれまでどおりスキーマごと入れない。本番で 8組・8曲・サムネは maxres、anon は USAGE も SELECT も無し、authenticated は読むだけ、既存の引き金が動くこと（取り消す形で）を確かめた。手元の検査は通常2本と、守りを壊す 22件すべて赤。
+- iPhone はカタログを Go サーバーではなく DB から本人の鍵で直接読む（`catalogThumbnails`。読めたことを本番のログで確かめた）。
+- Go サーバー（Android・Web が使う）は本人がいないので、読むにはサーバー用の秘密の鍵が要る（`SUPABASE_SECRET_KEY`。デプロイスクリプトは Secret Manager の `streetmelody-supabase-secret` があれば渡す）。入れるまでは埋め込みの見本で動く（今と同じ）。Cloud Run の出し直しは鍵を入れてから。
+- 今日のプレゼントの演出は、ログインしてから出す。
+- 開発用: 起動引数 `-previewLoginGate` で、ログアウトせずにログイン画面を見られる（DEBUG だけ）。
+- 確かめたこと: ログイン済みでは起動画面からそのままホームへ（ログイン画面は出ない）。ログイン画面の見た目（上の引数で）。

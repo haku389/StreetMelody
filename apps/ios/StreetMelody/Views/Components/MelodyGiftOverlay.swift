@@ -21,7 +21,7 @@ extension AppViewModel {
     /// 今日のメロディが届いていて、今日まだ開けていなければ出す（1日1回）。
     /// プロフィールの登録やパズル完成の演出が出ているときは、それが閉じてから
     func presentMelodyGiftIfNeeded() {
-        guard melodyGiftCount == nil, !isLoading, !showProfileEdit, puzzleCompleteTrackId == nil else { return }
+        guard melodyGiftCount == nil, !isLoading, !isGuestAccount, !showProfileEdit, puzzleCompleteTrackId == nil else { return }
         let count = pendingEncounterCount
         guard count > 0 else { return }
         let today = Self.melodyGiftDay(Date())

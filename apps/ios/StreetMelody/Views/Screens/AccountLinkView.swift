@@ -8,9 +8,13 @@ import SwiftUI
 /// ログインすると端末の進行がアカウントへ上がる。
 /// ログイン方法は、共通アカウントのプロジェクトで有効なものだけを押せるようにする
 /// （メール・Google・Spotify。Apple は有料の開発者登録が要るので今は無い）。
+///
+/// アプリはログイン必須（StyleCare と同じ）。ログインしていないときは asGate で全面に出し、
+/// 閉じるボタンは置かない（ログインすると isGuestAccount が false になって消える）。
 struct AccountLinkView: View {
     @EnvironmentObject var vm: AppViewModel
     @Environment(\.dismiss) private var dismiss
+    var asGate = false
 
     private enum Mode: String, CaseIterable { case login = "ログイン", signup = "新規登録" }
     @State private var mode: Mode = .login
@@ -22,9 +26,44 @@ struct AccountLinkView: View {
     @State private var providers: Set<String> = ["email", "google"]
 
     var body: some View {
-        NavigationStack {
+        if asGate {
+            form
+                .background(MLBackground())
+        } else {
+            NavigationStack {
+                form
+                    .background(Color(hex: "FFFFFF").ignoresSafeArea())
+                    .navigationTitle("アカウント")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("閉じる") { dismiss() }
+                        }
+                    }
+            }
+        }
+    }
+
+    /// ログイン画面の上に出す、アプリの名前とひとこと
+    private var gateHeader: some View {
+        VStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(MLPalette.button)
+                .frame(width: 80, height: 80)
+                .overlay(Image(systemName: "music.note").font(.system(size: 36, weight: .black)).foregroundStyle(.white))
+                .mlGlow()
+            Text("StreetMelody").font(.system(size: 26, weight: .black)).foregroundStyle(MLPalette.ink)
+            Text("すれちがうたび、好きな音が増えていく。")
+                .font(.system(size: 12, weight: .heavy)).foregroundStyle(MLPalette.muted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 36).padding(.bottom, 6)
+    }
+
+    private var form: some View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if asGate { gateHeader }
                     GlassSegment(items: Mode.allCases, selection: $mode) { $0.rawValue }
 
                     Label("StyleCare と同じアカウント（共通アカウント）で使えます", systemImage: "person.crop.circle.badge.checkmark")
@@ -85,17 +124,9 @@ struct AccountLinkView: View {
                 }
                 .padding(20)
             }
-            .background(Color(hex: "FFFFFF").ignoresSafeArea())
-            .navigationTitle("アカウント")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("閉じる") { dismiss() }
-                }
-            }
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: mode) { _ in error = nil; notice = nil }
             .task { providers = await SupabaseClient.shared.enabledProviders() }
-        }
     }
 
     private func submit() {
