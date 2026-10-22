@@ -37,6 +37,7 @@ run_all() {
   psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -f migrations/20261015170000_encounter_outbox.sql >/dev/null || return 1
   psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -f migrations/20261015180000_encounter_days_no_anon.sql >/dev/null || return 1
   psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -f migrations/20261022120000_streetmelody_catalog.sql >/dev/null || return 1
+  psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -f migrations/20261022130000_catalog_server_read.sql >/dev/null || return 1
   if [ -n "${MUTATION:-}" ]; then
     psql -p "$PORT" -d "$DB" -v ON_ERROR_STOP=1 -q -c "$MUTATION" >/dev/null || return 1
   fi
@@ -63,6 +64,8 @@ MUTATIONS=(
   "他人の行に印を付けられる|create or replace function streetmelody.mark_my_encounters_sent(p_items jsonb, p_result jsonb default null) returns integer language plpgsql security definer set search_path = '' as \$f\$ declare n integer; begin update streetmelody.encounter_days d set sent_at = clock_timestamp(), hub_result = p_result from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as i(other_hash text, occurred_on date) where d.other_hash = i.other_hash and d.occurred_on = i.occurred_on and d.sent_at is null; get diagnostics n = row_count; return n; end; \$f\$;"
   "カタログを anon に読ませる|grant usage on schema streetmelody to anon; grant select on streetmelody.tracks to anon; create policy leak on streetmelody.tracks for select to anon using (true);"
   "カタログを書かせる|grant insert on streetmelody.tracks to authenticated;"
+  "サーバーに書かせる|grant insert on streetmelody.tracks to service_role;"
+  "サーバーに読ませない|revoke select on streetmelody.tracks from service_role;"
   "カタログの RLS を外す|alter table streetmelody.tracks disable row level security;"
   "カタログに書くポリシーを足す|create policy leak on streetmelody.tracks for insert to authenticated with check (true);"
   "関数を PUBLIC に戻す|grant execute on all functions in schema streetmelody to public;"

@@ -1275,7 +1275,7 @@ Webは変更せず、iOS / Androidの既存タブを対象に整えた。
 - 起動時に圏外だっただけでログアウト扱いにしていた（更新の鍵の取り直しが通信で失敗すると signOut していた）。サーバーが断ったとき（4xx）だけ未ログインに戻し、通信できないときは本人のまま入れて、鍵は次に通信するとき取り直す（`hasSession` / `ensureAccessToken`）。ログイン必須にすると、圏外で閉め出してしまうため。
 - 曲カタログ: `20261022120000_streetmelody_catalog.sql` を「ログインした人だけ読める」形にして本番に当てた。anon はこれまでどおりスキーマごと入れない。本番で 8組・8曲・サムネは maxres、anon は USAGE も SELECT も無し、authenticated は読むだけ、既存の引き金が動くこと（取り消す形で）を確かめた。手元の検査は通常2本と、守りを壊す 22件すべて赤。
 - iPhone はカタログを Go サーバーではなく DB から本人の鍵で直接読む（`catalogThumbnails`。読めたことを本番のログで確かめた）。
-- Go サーバー（Android・Web が使う）は本人がいないので、読むにはサーバー用の秘密の鍵が要る（`SUPABASE_SECRET_KEY`。デプロイスクリプトは Secret Manager の `streetmelody-supabase-secret` があれば渡す）。入れるまでは埋め込みの見本で動く（今と同じ）。Cloud Run の出し直しは鍵を入れてから。
+- Go サーバー（Android・Web が使う）は本人がいないので、秘密の鍵（`SUPABASE_SECRET_KEY`＝service_role）で読む。はくが Supabase で鍵を作り、Secret Manager の `streetmelody-supabase-secret` に入れて Cloud Run のサービスアカウントに読む権限を渡した。最初は 403 になった（service_role は RLS を越えるが表の GRANT が要る。authenticated にしか渡していなかった）ので、`20261022130000_catalog_server_read.sql` で service_role に SELECT だけ渡した（本番済み・検査に足した）。手元で起動して 8曲・24ピース・maxres を読めることを確かめてから Cloud Run に出し直した。
 - 今日のプレゼントの演出は、ログインしてから出す。
 - 開発用: 起動引数 `-previewLoginGate` で、ログアウトせずにログイン画面を見られる（DEBUG だけ）。
 - 確かめたこと: ログイン済みでは起動画面からそのままホームへ（ログイン画面は出ない）。ログイン画面の見た目（上の引数で）。

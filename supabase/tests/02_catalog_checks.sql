@@ -27,6 +27,11 @@ select pg_temp.expect((select count(*) from streetmelody.tracks) = 8, 'authentic
 select pg_temp.expect((select count(*) from streetmelody.artists) = 8, 'authenticated がアーティストを読めない');
 reset role;
 
+\echo '--- (b2) サーバー（秘密の鍵＝service_role）も読める。書けるのは管理者だけ'
+select pg_temp.expect(has_table_privilege('service_role', 'streetmelody.tracks', 'SELECT'), 'service_role が曲を読めない（Go サーバーが 403 になる）');
+select pg_temp.expect(has_table_privilege('service_role', 'streetmelody.artists', 'SELECT'), 'service_role がアーティストを読めない');
+select pg_temp.expect(not has_table_privilege('service_role', 'streetmelody.tracks', 'INSERT,UPDATE,DELETE,TRUNCATE'), 'service_role が曲を書ける権限を持っている');
+
 \echo '--- (c) ログインしていない人は読めない（スキーマごと入れない）'
 select pg_temp.expect(not has_schema_privilege('anon', 'streetmelody', 'USAGE'), 'anon にスキーマの USAGE がある');
 select pg_temp.expect(not has_table_privilege('anon', 'streetmelody.tracks', 'SELECT'), 'anon が曲を読める権限を持っている');
