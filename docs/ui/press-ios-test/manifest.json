@@ -1,0 +1,17 @@
+[
+  {
+    "attachments" : [
+      {
+        "configurationName" : "Test Scheme Action",
+        "deviceId" : "6C1D8B95-4D3C-45ED-BF89-375F12D3137F",
+        "deviceName" : "iPhone 17 Pro",
+        "exportedFileName" : "BF495CC5-FD92-4404-8138-0C08EC2C0475.png",
+        "isAssociatedWithFailure" : false,
+        "suggestedHumanReadableName" : "press-resting-ios_0_221C3DEE-1CE7-4495-BFC6-4E8695BE8D93.png",
+        "timestamp" : 1792062382.306
+      }
+    ],
+    "testIdentifier" : "TabAppearanceTests/testHeroLongPressActivatesOnRelease()",
+    "testIdentifierURL" : "test://com.apple.xcode/StreetMelody/StreetMelodyUITests/TabAppearanceTests/testHeroLongPressActivatesOnRelease"
+  }
+]
