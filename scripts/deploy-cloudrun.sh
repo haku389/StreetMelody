@@ -21,8 +21,16 @@ REGION="${REGION:-asia-northeast1}"          # Supabase が東京なので近接
 SERVICE="${SERVICE:-streetmelody-api}"
 
 # Supabase 接続（公開 anon キー。秘密ではない）
-SUPABASE_URL="${SUPABASE_URL:-https://wngtvdgzzlkajtbwsurc.supabase.co}"
-SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-sb_publishable_oR41TcNHu-G9La0JHrnmWg_P8SfRts5}"
+# 2026-10-22 から StyleCare のプロジェクト（共通アカウント）の streetmelody スキーマを読む
+SUPABASE_URL="${SUPABASE_URL:-https://oaurexinrtvzvtvotqaw.supabase.co}"
+SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-sb_publishable_JuWP6MzIP_zeWDGsoQLwAA_flKbS71V}"
+SUPABASE_SCHEMA="${SUPABASE_SCHEMA:-streetmelody}"
+# カタログはログインした人だけが読める。サーバーが読むには Supabase の秘密の鍵（sb_secret_…）を
+# Secret Manager の streetmelody-supabase-secret に入れておく（無ければ埋め込みの見本で動く）
+SECRET_FLAG=""
+if gcloud secrets describe streetmelody-supabase-secret --project "$PROJECT_ID" >/dev/null 2>&1; then
+  SECRET_FLAG="--set-secrets=SUPABASE_SECRET_KEY=streetmelody-supabase-secret:latest"
+fi
 
 if [[ -z "$PROJECT_ID" ]]; then
   echo "ERROR: GCP プロジェクトが未設定です。 gcloud config set project <ID> を実行するか PROJECT_ID=... を指定してください。" >&2
@@ -55,7 +63,8 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated \
   --port 8080 \
   --cpu 1 --memory 256Mi --min-instances 0 --max-instances 2 \
-  --set-env-vars "SUPABASE_URL=${SUPABASE_URL},SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" \
+  --set-env-vars "SUPABASE_URL=${SUPABASE_URL},SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY},SUPABASE_SCHEMA=${SUPABASE_SCHEMA}" \
+  ${SECRET_FLAG} \
   --quiet
 
 echo ""

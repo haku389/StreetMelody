@@ -1,8 +1,12 @@
 // supabase.go — Supabase(PostgREST) からカタログデータを取得する
 //
-// SUPABASE_URL / SUPABASE_ANON_KEY が設定されていれば起動時に
-// artists / tracks を取得し、インメモリストアの内容を置き換える。
+// 起動時に artists / tracks を取得し、インメモリストアの内容を置き換える。
 // 取得に失敗した場合は埋め込みシードデータのまま動作する（フォールバック）。
+//
+// カタログは StyleCare のプロジェクト（共通アカウント）の `streetmelody` スキーマにある
+// （2026-10-22 に古い MelodyLien プロジェクトから移した）。public ではないので、
+// PostgREST には Accept-Profile でスキーマを伝える。
+// 読めるのはログインした人だけなので、サーバーは秘密の鍵（SUPABASE_SECRET_KEY）で読む。
 package store
 
 import (
@@ -14,10 +18,11 @@ import (
 	"streetmelody/api/model"
 )
 
-// プロトタイプ用デフォルト（anon キーは公開前提のキー）
+// 既定の接続先（公開キー。秘密ではない。iOS と同じ）
 const (
-	DefaultSupabaseURL     = "https://wngtvdgzzlkajtbwsurc.supabase.co"
-	DefaultSupabaseAnonKey = "sb_publishable_oR41TcNHu-G9La0JHrnmWg_P8SfRts5"
+	DefaultSupabaseURL     = "https://oaurexinrtvzvtvotqaw.supabase.co"
+	DefaultSupabaseAnonKey = "sb_publishable_JuWP6MzIP_zeWDGsoQLwAA_flKbS71V"
+	DefaultSupabaseSchema  = "streetmelody"
 )
 
 type supabaseArtist struct {
@@ -38,13 +43,16 @@ type supabaseTrack struct {
 	Color          string `json:"color"`
 }
 
-func fetchJSON(client *http.Client, url, key string, out any) error {
+func fetchJSON(client *http.Client, url, key, schema string, out any) error {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("apikey", key)
 	req.Header.Set("Authorization", "Bearer "+key)
+	if schema != "" {
+		req.Header.Set("Accept-Profile", schema)
+	}
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -58,16 +66,17 @@ func fetchJSON(client *http.Client, url, key string, out any) error {
 }
 
 // LoadFromSupabase は PostgREST からカタログを取得してストアを更新する。
-func (s *Store) LoadFromSupabase(baseURL, anonKey string) error {
+// schema が空なら public を読む。
+func (s *Store) LoadFromSupabase(baseURL, anonKey, schema string) error {
 	client := &http.Client{Timeout: 8 * time.Second}
 	rest := baseURL + "/rest/v1"
 
 	var sbArtists []supabaseArtist
-	if err := fetchJSON(client, rest+"/artists?select=id,name", anonKey, &sbArtists); err != nil {
+	if err := fetchJSON(client, rest+"/artists?select=id,name", anonKey, schema, &sbArtists); err != nil {
 		return err
 	}
 	var sbTracks []supabaseTrack
-	if err := fetchJSON(client, rest+"/tracks?select=*", anonKey, &sbTracks); err != nil {
+	if err := fetchJSON(client, rest+"/tracks?select=*", anonKey, schema, &sbTracks); err != nil {
 		return err
 	}
 	if len(sbArtists) == 0 || len(sbTracks) == 0 {

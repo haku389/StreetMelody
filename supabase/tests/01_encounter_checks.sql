@@ -135,7 +135,8 @@ end $$;
 reset role;
 
 -- **権限そのものを数える。** 表は「GRANT を外す」と「RLS（ポリシー無し）」の2枚で、
--- 関数は「EXECUTE を外す」と「スキーマの USAGE が無い」の2枚で守っている。
+-- 関数は「EXECUTE を外す」と「スキーマの USAGE が無い」の2枚で守っている
+-- （PUBLIC の EXECUTE は 20261022120000 で外した。02_catalog_checks.sql でも数える）。
 -- 上の「止まったか」だけを見ると、1枚外れても残りの1枚が止めて緑のまま気づけない
 -- （変異検査で、GRANT を足しても緑だった）
 select pg_temp.expect(
@@ -163,7 +164,7 @@ begin
     'streetmelody.mark_my_encounters_sent(jsonb, jsonb)',
     'streetmelody.mark_my_encounters_failed(jsonb, text)'] loop
     if has_function_privilege('anon', f, 'execute') then
-      raise exception 'FAIL: anon が % を実行できる（スキーマの USAGE だけで守っている）', f;
+      raise exception 'FAIL: anon が % を実行できる', f;
     end if;
     -- （対）authenticated は呼べる。全部閉じると端末から1件も入らない
     if not has_function_privilege('authenticated', f, 'execute') then

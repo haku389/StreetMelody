@@ -22,14 +22,24 @@ func main() {
 	if sbURL == "" {
 		sbURL = store.DefaultSupabaseURL
 	}
-	sbKey := os.Getenv("SUPABASE_ANON_KEY")
+	// カタログはログインした人だけが読める（アプリはログイン必須）。サーバーには本人がいないので、
+	// 読むにはサーバー用の秘密の鍵（SUPABASE_SECRET_KEY）が要る。無ければ公開キーで試し、
+	// 読めなければ埋め込みの見本で動く
+	sbKey := os.Getenv("SUPABASE_SECRET_KEY")
+	if sbKey == "" {
+		sbKey = os.Getenv("SUPABASE_ANON_KEY")
+	}
 	if sbKey == "" {
 		sbKey = store.DefaultSupabaseAnonKey
 	}
-	if err := s.LoadFromSupabase(sbURL, sbKey); err != nil {
+	sbSchema := os.Getenv("SUPABASE_SCHEMA")
+	if sbSchema == "" {
+		sbSchema = store.DefaultSupabaseSchema
+	}
+	if err := s.LoadFromSupabase(sbURL, sbKey, sbSchema); err != nil {
 		fmt.Fprintf(os.Stderr, "supabase unavailable, using embedded seed: %v\n", err)
 	} else {
-		fmt.Println("catalog loaded from Supabase:", sbURL)
+		fmt.Println("catalog loaded from Supabase:", sbURL, "schema:", sbSchema)
 	}
 
 	h := handler.New(s)
