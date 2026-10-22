@@ -97,6 +97,33 @@ struct ServiceIcon: View {
     }
 }
 
+// MARK: - ログイン方法の印（メール・Google・Spotify）
+//
+// Google は StyleCare のログイン画面と同じ公式の「G」（Resources/Brand.xcassets の google_g.svg）。
+// ログインは Google のアカウントで入るもので、YouTube Music の連携とは別なので、
+// YouTube Music の絵は使わない。
+
+struct LoginMethodIcon: View {
+    let method: String   // "email" | "google" | "spotify"
+    var size: CGFloat = 24
+
+    var body: some View {
+        switch method {
+        case "google":
+            RoundedRectangle(cornerRadius: size * 0.26, style: .continuous).fill(.white)
+                .overlay(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous).stroke(Color(hex: "E5E7EB")))
+                .overlay(Image("google_g").resizable().scaledToFit().padding(size * 0.2))
+                .frame(width: size, height: size)
+        case "spotify":
+            ServiceIcon(service: "spotify", size: size)
+        default:
+            RoundedRectangle(cornerRadius: size * 0.26, style: .continuous).fill(Color(hex: "8D7694"))
+                .overlay(Image(systemName: "envelope.fill").font(.system(size: size * 0.46, weight: .bold)).foregroundStyle(.white))
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 // MARK: - 小見出し・メニューのカード（StyleCare のマイページと同じ作り）
 
 /// カードの外に置く小見出し
@@ -117,6 +144,8 @@ struct MLMenuCard: View {
     let title: String
     var desc: String? = nil
     var badge: Int = 0
+    /// 見出しの色。ログアウトなど、取り消しにくい操作は赤にする（StyleCare の設定と同じ）
+    var titleColor: Color = MLPalette.ink
     let action: () -> Void
 
     var body: some View {
@@ -129,7 +158,7 @@ struct MLMenuCard: View {
                     .frame(width: 42, height: 42)
                     .overlay(Image(systemName: icon).font(.system(size: 18, weight: .semibold)).foregroundStyle(tint))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
+                    Text(title).font(.system(size: 14, weight: .black)).foregroundStyle(titleColor)
                     if let desc, !desc.isEmpty {
                         Text(desc).font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694")).lineLimit(2)
                     }

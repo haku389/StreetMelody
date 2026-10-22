@@ -87,6 +87,8 @@ extension MLTabScreen where Pinned == EmptyView {
 struct MLTabTitle: View {
     let title: String
     var subtitle: String? = nil
+    /// 右の飾りの絵。右に押せるボタンを並べる画面（マイページ）では出さない（ボタンと見分けがつかない）
+    var showsSymbol: Bool = true
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -98,10 +100,12 @@ struct MLTabTitle: View {
                 }
             }
             Spacer(minLength: 0)
-            Image(systemName: symbol).font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(MLPalette.primary).frame(width: 44, height: 44)
-                .mlInset(radius: 15)
-                .accessibilityHidden(true)
+            if showsSymbol {
+                Image(systemName: symbol).font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(MLPalette.primary).frame(width: 44, height: 44)
+                    .mlInset(radius: 15)
+                    .accessibilityHidden(true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

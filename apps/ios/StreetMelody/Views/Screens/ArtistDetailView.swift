@@ -77,7 +77,7 @@ struct ArtistDetailView: View {
                         vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id))
                     } label: {
                         HStack(spacing: 12) {
-                            ArtBlockView(track: track, cornerRadius: 14).frame(width: 52, height: 52)
+                            ArtBlockView(track: track, cornerRadius: 10).mlThumbFrame(width: 80)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
                                     .font(.system(size: 13, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)

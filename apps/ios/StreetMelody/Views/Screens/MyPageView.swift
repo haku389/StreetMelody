@@ -8,23 +8,27 @@ import PhotosUI
 //  プロフィールのカード（写真・名前・ID・フレンド数・QR）のあと、
 //  カードの外に小見出しを置き、メニューは1項目1枚のカードで並べる。
 //  フレンドもメニューの1項目。申請が届いているときは数を出し、押すと「届いた申請」から開く。
+//  右上は StyleCare と同じく「フレンドを追加」と歯車（設定のシート）。名前・ID・ひとことは
+//  プロフィールのカードから直す。アカウント・ログイン方法・規約・ログアウトは設定へ移した。
 // ─────────────────────────────────────────────────────────────
 
 struct MyPageView: View {
     @EnvironmentObject var vm: AppViewModel
-    @State private var showAccountSheet = false
+    @State private var showSettings = false
     @State private var showManualShare = false
     @State private var manualTitle = ""
     @State private var manualArtist = ""
     @State private var avatarItem: PhotosPickerItem?
-    @State private var linking: String?   // 連携中のログイン方法
 
     var body: some View {
         MLTabScreen {
             HStack {
-                MLTabTitle(title: "マイページ")
-                GlassIconButton(systemName: "gearshape", accessibilityLabel: "プロフィールの設定") {
-                    vm.showProfileEdit = true
+                MLTabTitle(title: "マイページ", showsSymbol: false)
+                GlassIconButton(systemName: "person.badge.plus", accessibilityLabel: "フレンドを追加") {
+                    vm.navigate(to: .friendAdd)
+                }
+                GlassIconButton(systemName: "gearshape", accessibilityLabel: "設定") {
+                    showSettings = true
                 }
             }
         } content: {
@@ -50,23 +54,11 @@ struct MyPageView: View {
                            desc: vm.premium ? "加入中" : "広告非表示・推し曲5曲・エリアランキング") {
                     vm.navigate(to: .premium)
                 }
-                MLSectionTitle(text: "アカウント")
-                accountSection
-                MLSectionTitle(text: "アプリについて")
-                MLMenuCard(icon: "questionmark.circle.fill", tint: Color(hex: "8D7694"), title: "ヘルプ") {
-                    vm.showToast("ヘルプは準備中です")
-                }
-                MLMenuCard(icon: "doc.text.fill", tint: Color(hex: "8D7694"), title: "利用規約・プライバシーポリシー") {
-                    vm.showToast("利用規約は準備中です")
-                }
-                Text("StreetMelody \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
-                    .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B29ABC"))
-                    .padding(.top, 8)
             }
         }
         .task { await vm.loadSharedFeed(); await vm.loadFriends() }
         .sheet(isPresented: $showManualShare) { manualShareSheet }
-        .sheet(isPresented: $showAccountSheet) { AccountLinkView().environmentObject(vm) }
+        .sheet(isPresented: $showSettings) { SettingsView().environmentObject(vm) }
         .onChange(of: avatarItem) { item in
             guard let item else { return }
             Task {
@@ -221,96 +213,6 @@ struct MyPageView: View {
         }
     }
 
-    // MARK: - アカウント
-
-    /// ログイン方法（メール・Google・Spotify）。足りないものは「追加」で、今のアカウントに足せる
-    private var loginMethods: some View {
-        let rows: [(id: String, name: String, service: String)] = [
-            ("email", "メール", ""), ("google", "Google（YouTube Music）", "youtubeMusic"), ("spotify", "Spotify", "spotify"),
-        ]
-        return VStack(alignment: .leading, spacing: 0) {
-            Text("ログイン方法").font(.system(size: 11, weight: .black)).foregroundStyle(Color(hex: "8D7694"))
-                .padding(.bottom, 6)
-            ForEach(rows, id: \.id) { r in
-                let linked = vm.linkedProviders.contains(r.id)
-                let canAdd = !linked && r.id != "email" && vm.availableProviders.contains(r.id)
-                if linked || canAdd {
-                    HStack(spacing: 10) {
-                        if r.service.isEmpty {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color(hex: "8D7694"))
-                                .frame(width: 24, height: 24)
-                                .overlay(Image(systemName: "envelope.fill").font(.system(size: 11, weight: .bold)).foregroundStyle(.white))
-                        } else {
-                            ServiceIcon(service: r.service, size: 24)
-                        }
-                        Text(r.name).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
-                        Spacer()
-                        if linked {
-                            Label("使えます", systemImage: "checkmark").font(.system(size: 11, weight: .black))
-                                .foregroundStyle(Color(hex: "1A9E6E"))
-                        } else {
-                            Button {
-                                linking = r.id
-                                Task {
-                                    if let err = await vm.linkLoginMethod(r.id) { vm.showToast(err) }
-                                    linking = nil
-                                }
-                            } label: {
-                                Group {
-                                    if linking == r.id { ProgressView().tint(.white) } else { Text("追加") }
-                                }
-                                .font(.system(size: 12, weight: .black)).foregroundStyle(.white)
-                                .frame(minWidth: 52).padding(.horizontal, 12).padding(.vertical, 7)
-                                .background(Color(hex: "A27BC8"), in: Capsule())
-                                .mlGlow()
-                            }
-                            .buttonStyle(MLPressButtonStyle())
-                            .disabled(linking != nil)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-            Text("足しても名前・ID・進行はそのまま。どの方法でも同じアカウントに入れます。")
-                .font(.system(size: 10, weight: .bold)).foregroundStyle(Color(hex: "B29ABC"))
-                .padding(.top, 4)
-        }
-        .padding(12)
-        .mlInset(radius: 16)
-        .task(id: vm.isGuestAccount) { await vm.loadLoginMethods() }
-    }
-
-    private var accountSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill((vm.isGuestAccount ? Color(hex: "8D7694") : Color(hex: "1A9E6E")).opacity(0.13))
-                    .frame(width: 40, height: 40)
-                    .overlay(Image(systemName: vm.isGuestAccount ? "person.fill.questionmark" : "checkmark.seal.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(vm.isGuestAccount ? Color(hex: "8D7694") : Color(hex: "1A9E6E")))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(vm.isGuestAccount ? "ログインしていません" : "ログイン中")
-                        .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
-                    Text(vm.isGuestAccount ? "端末の中だけで動いています · ログインでフレンド・機種変更に対応"
-                                           : (vm.accountEmail ?? "共通アカウント"))
-                        .font(.system(size: 11, weight: .bold)).foregroundStyle(Color(hex: "8D7694"))
-                }
-            }
-            if vm.isGuestAccount {
-                Button { showAccountSheet = true } label: {
-                    Text("ログイン / 新規登録").buttonLabel(.primary)
-                }
-            } else {
-                loginMethods
-                Button { Task { await vm.signOutAccount() } } label: {
-                    Text("ログアウト").buttonLabel(.secondary)
-                }
-            }
-        }
-        .padding(16).mlCard()
-    }
-
     // MARK: - Oshi section
 
     private var oshiSection: some View {
@@ -333,7 +235,7 @@ struct MyPageView: View {
             } else {
                 ForEach(oshiTracks) { track in
                     HStack(spacing: 10) {
-                        ArtBlockView(track: track, cornerRadius: 10).frame(width: 36, height: 36)
+                        ArtBlockView(track: track, cornerRadius: 8).mlThumbFrame(width: 64)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(track.title ?? "—").font(.system(size: 12, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
                             Text(track.displayArtist).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))

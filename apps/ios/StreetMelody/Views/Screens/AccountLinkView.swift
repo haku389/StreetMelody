@@ -72,8 +72,8 @@ struct AccountLinkView: View {
                                    fg: .white, bg: Color(hex: "1DB954"), border: Color(hex: "1DB954")) {
                         await vm.signInWithSpotify(link: false)
                     }
-                    providerButton("google", title: "Google で続ける（YouTube Music）",
-                                   fg: Color(hex: "1c1c22"), bg: .white, border: Color(hex: "EADCE7")) {
+                    providerButton("google", title: "Google で続ける",
+                                   fg: Color(hex: "1c1c22"), bg: .white, border: Color(hex: "E5E7EB")) {
                         await vm.signInWithGoogle(link: false)
                     }
                     if !providers.contains("spotify") {
@@ -124,7 +124,6 @@ struct AccountLinkView: View {
                                 action: @escaping () async -> String?) -> some View {
         let loading = working == id
         let enabled = providers.contains(id)
-        let serviceKey = id == "spotify" ? "spotify" : (id == "google" ? "youtubeMusic" : id)
         return Button {
             error = nil; notice = nil; working = id
             Task {
@@ -134,7 +133,14 @@ struct AccountLinkView: View {
             }
         } label: {
             HStack(spacing: 10) {
-                if loading { ProgressView().tint(fg) } else { ServiceIcon(service: serviceKey, size: 22) }
+                if loading {
+                    ProgressView().tint(fg)
+                } else if id == "google" {
+                    // StyleCare のログイン画面と同じ、白地に公式の G だけ
+                    Image("google_g").resizable().scaledToFit().frame(width: 20, height: 20)
+                } else {
+                    LoginMethodIcon(method: id, size: 22)
+                }
                 Text(loading ? "接続中…" : title)
                     .font(.system(size: 14, weight: .black))
                     .foregroundStyle(fg)

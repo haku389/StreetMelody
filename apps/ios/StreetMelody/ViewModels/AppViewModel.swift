@@ -154,6 +154,8 @@ final class AppViewModel: ObservableObject {
     // MARK: Published - puzzle complete / title celebration
 
     @Published var puzzleCompleteTrackId: String? = nil
+    /// 今日のメロディのプレゼント（開封の演出）に出す数。nil のあいだは出さない（MelodyGiftOverlay.swift）
+    @Published var melodyGiftCount: Int? = nil
     @Published var pendingTitleCelebrations: [String] = []
 
     // MARK: Published - UI state

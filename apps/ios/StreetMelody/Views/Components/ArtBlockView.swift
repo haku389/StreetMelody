@@ -108,10 +108,13 @@ struct MelodyCardArtwork: View {
 
 // MARK: - ArtBlockView
 
-/// 曲アート（正方形〜任意比率）。YouTube サムネイルを中央クロップで表示し、
+/// 曲アート（YouTube サムネと同じ 16:9）。サムネイルを中央クロップで表示し、
 /// 未解放曲はネタバレ防止でモザイク。サムネが無い曲は独自生成カード。
 /// customImage は本人画面のみ渡す。
 struct ArtBlockView: View {
+    /// サムネの比率（YouTube の mqdefault と同じ）。一覧・グリッド・パズルでそろえる
+    static let ratio: CGFloat = 16.0 / 9.0
+
     var color: String = "violet"
     var cornerRadius: CGFloat = 18
     var seed: String = ""
@@ -143,6 +146,13 @@ struct ArtBlockView: View {
     }
 }
 
+extension View {
+    /// 幅を決めて 16:9 の枠にする（一覧の行に置くサムネ用）
+    func mlThumbFrame(width: CGFloat) -> some View {
+        frame(width: width, height: (width / ArtBlockView.ratio).rounded())
+    }
+}
+
 // MARK: - PuzzlePiecesView
 
 /// 設計書準拠の 6×4＝24ピースのパズル表示。
@@ -150,8 +160,10 @@ struct ArtBlockView: View {
 /// - revealAll: フル表示（全ピースを見せる）
 /// - blur: モザイク（未解放曲のフル表示などで使用）
 /// - customImage: 本人画面のみ。
+/// - availablePieces: この出会いで取れるピース。未所持なら「？」で光らせる（取れないピースと見分けるため）
 struct PuzzlePiecesView: View {
     let ownedPieces: [Int]
+    var availablePieces: [Int] = []
     var color: String = "violet"
     var seed: String = ""
     var thumbnailURL: URL? = nil
@@ -185,10 +197,20 @@ struct PuzzlePiecesView: View {
                         Rectangle().fill(isVisible(n) ? Color.white : Color.clear)
                     }
                 )
+                if !revealAll && !availablePieces.isEmpty {
+                    let cell = min((w - gap * CGFloat(cols - 1)) / CGFloat(cols), (h - gap * CGFloat(rows - 1)) / CGFloat(rows))
+                    pieceGrid(w: w, h: h) { n in
+                        if availablePieces.contains(n) && !ownedPieces.contains(n) {
+                            AvailablePieceMark(size: cell)
+                        } else {
+                            Color.clear
+                        }
+                    }
+                }
             }
             .frame(width: w, height: h)
         }
-        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+        .aspectRatio(ArtBlockView.ratio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color(hex: "EADCE7")))
     }
@@ -271,10 +293,65 @@ struct CachedThumbnail: View {
             return
         }
 
-        guard let (data, _) = try? await thumbnailSession.data(from: url),
-              let ui = UIImage(data: data) else { return }
+        var ui = await fetch(url)
+        // maxresdefault は古い動画などで無いことがある（404 と 120×90 の灰色画像が返る）。
+        // そのときは必ずある hqdefault（4:3 に黒帯付き。16:9 の枠で中央を切ると帯が消える）に落とす
+        if ui == nil, url.host == "i.ytimg.com", url.lastPathComponent == "maxresdefault.jpg" {
+            ui = await fetch(url.deletingLastPathComponent().appendingPathComponent("hqdefault.jpg"))
+        }
+        guard let ui = ui?.trimmingBlackBars() else { return }
         ThumbnailCache.shared.setObject(ui, forKey: url as NSURL)
         image = ui
+    }
+
+    private func fetch(_ url: URL) async -> UIImage? {
+        guard let (data, response) = try? await thumbnailSession.data(from: url),
+              ((response as? HTTPURLResponse)?.statusCode ?? 200) == 200 else { return nil }
+        return UIImage(data: data)
+    }
+}
+
+extension UIImage {
+    /// 動画そのものに入っている黒帯（シネスコの上下・額縁）を切り落とす。
+    /// 16:9 の枠に中央クロップで入れると、帯がそのまま見えてしまうため。
+    /// 行（列）のほぼ全部が真っ黒のときだけ帯とみなし、1辺あたり最大 25% まで（暗い場面を削らない）。
+    func trimmingBlackBars() -> UIImage {
+        guard let cg = cgImage, cg.width > 0, cg.height > 0 else { return self }
+        // 縮小した画像で調べる（1枚あたり1万画素ほど）
+        let w = 96, h = max(8, Int((Double(cg.height) / Double(cg.width) * 96).rounded()))
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        let drawn = px.withUnsafeMutableBytes { buf -> Bool in
+            guard let ctx = CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8,
+                                      bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return false }
+            ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard drawn else { return self }
+
+        func dark(_ x: Int, _ y: Int) -> Bool {
+            let i = (y * w + x) * 4
+            return max(px[i], px[i + 1], px[i + 2]) < 28
+        }
+        func rowDark(_ y: Int) -> Bool { (0..<w).filter { dark($0, y) }.count * 100 >= w * 97 }
+        func colDark(_ x: Int, _ ys: Range<Int>) -> Bool { ys.filter { dark(x, $0) }.count * 100 >= ys.count * 97 }
+
+        var top = 0, bottom = 0, left = 0, right = 0
+        while top < h / 4, rowDark(top) { top += 1 }
+        while bottom < h / 4, rowDark(h - 1 - bottom) { bottom += 1 }
+        let ys = top..<(h - bottom)
+        while left < w / 4, colDark(left, ys) { left += 1 }
+        while right < w / 4, colDark(w - 1 - right, ys) { right += 1 }
+        guard top + bottom + left + right > 0 else { return self }
+        // 縮小で境目がぼけた1行ぶんも落とす
+        if top > 0 { top += 1 }; if bottom > 0 { bottom += 1 }
+        if left > 0 { left += 1 }; if right > 0 { right += 1 }
+
+        let sx = Double(cg.width) / Double(w), sy = Double(cg.height) / Double(h)
+        let rect = CGRect(x: Double(left) * sx, y: Double(top) * sy,
+                          width: Double(w - left - right) * sx, height: Double(h - top - bottom) * sy).integral
+        guard let cropped = cg.cropping(to: rect) else { return self }
+        return UIImage(cgImage: cropped, scale: scale, orientation: imageOrientation)
     }
 }
 

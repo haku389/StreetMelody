@@ -66,9 +66,9 @@ struct MelodyView: View {
         let track = vm.track(for: item.trackId)
         return HStack(spacing: 12) {
             if let t = track {
-                ArtBlockView(track: t, cornerRadius: 12).frame(width: 52, height: 52)
+                ArtBlockView(track: t, cornerRadius: 10).mlThumbFrame(width: 80)
             } else {
-                RoundedRectangle(cornerRadius: 12).fill(Color(hex: "EEE0F2")).frame(width: 52, height: 52)
+                RoundedRectangle(cornerRadius: 10).fill(Color(hex: "EEE0F2")).mlThumbFrame(width: 80)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text("🕒 \(Self.timeFmt.string(from: item.collectedAt)) · 👤 \(item.fromUserName) · 📍\(item.locationLabel)")
@@ -195,6 +195,7 @@ struct MelodyView: View {
         return VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
                 PuzzlePiecesView(ownedPieces: track?.ownedPieces ?? [],
+                                 availablePieces: candidate.availablePieces,
                                  color: track?.color ?? "violet",
                                  seed: track?.id ?? "",
                                  thumbnailURL: track?.thumbnailURL,

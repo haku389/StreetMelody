@@ -123,37 +123,37 @@ struct PieceSelectView: View {
                         .padding(2)
                 }
         } else if available.contains(n) {
+            // 取得可能：明るいグラデーションに大きな「？」。ゆっくり光って「押せる」と分かるようにする
+            // （以前は淡い紫どうしで、取得不可と見分けにくかった）
             Button {
                 vm.collectPiece(encounterId: encounterId, candidateIndex: candidateIndex, pieceNumber: n)
             } label: {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color(hex: "A27BC8").opacity(0.45))
-                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(.white.opacity(0.9), lineWidth: 1.5))
-                    .overlay(Text("\(n)").font(.system(size: 9, weight: .black)).foregroundStyle(.white))
+                AvailablePieceMark(size: min(cellW, cellH))
             }
             .buttonStyle(MLPressButtonStyle())
+            .accessibilityLabel("\(n)番のピースを取る")
         } else {
-            // 取得不可：lockedピース（淡い紫）
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(hex: "E3DAF5"))
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color(hex: "D3C7EE"), lineWidth: 0.5))
+            // 取得不可：灰色に小さな鍵。色を落として、押せないことを形でも伝える
+            UnavailablePieceMark(size: min(cellW, cellH))
+                .accessibilityLabel("\(n)番のピースは取れません")
         }
     }
 
     private var legend: some View {
         HStack(spacing: 16) {
-            legendItem(color: Color(hex: "A27BC8").opacity(0.45), label: "取得可能")
-            legendItem(color: Color(hex: "1A9E6E"),               label: "所持済み")
-            legendItem(color: Color(hex: "E3DAF5"),               label: "取得不可")
+            legendItem(AvailablePieceMark(size: 18, pulses: false), label: "取得可能")
+            legendItem(RoundedRectangle(cornerRadius: 3).fill(Color(hex: "1A9E6E"))
+                .overlay(Text("✓").font(.system(size: 9, weight: .black)).foregroundStyle(.white)), label: "所持済み")
+            legendItem(UnavailablePieceMark(size: 18), label: "取得不可")
         }
         .font(.system(size: 10, weight: .heavy))
         .foregroundStyle(Color(hex: "8D7694"))
         .padding(.bottom, 14)
     }
 
-    private func legendItem(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 10, height: 10)
+    private func legendItem(_ mark: some View, label: String) -> some View {
+        HStack(spacing: 5) {
+            mark.frame(width: 18, height: 18)
             Text(label)
         }
     }
@@ -169,5 +169,65 @@ struct PieceSelectView: View {
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "EADCE7")))
         }
         .buttonStyle(MLPressButtonStyle())
+    }
+}
+
+// MARK: - ピースの印（取得可能・取得不可）
+
+/// 取得可能：紫→ピンクのグラデーションに白い「？」。押せるものだけが光る
+struct AvailablePieceMark: View {
+    var size: CGFloat
+    var pulses = true
+
+    var body: some View {
+        // ほかのピースと同じ大きさ・同じ角の丸み（枠は細く。太いと内側に縮んで見える）
+        let shape = RoundedRectangle(cornerRadius: 3, style: .continuous)
+        shape
+            .fill(LinearGradient(colors: [Color(hex: "9B6FE0"), Color(hex: "E57FB0")],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+            .overlay(shape.strokeBorder(.white.opacity(0.7), lineWidth: 1))
+            .overlay(
+                Text("?")
+                    .font(.system(size: size * 0.6, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: Color(hex: "5B2E91").opacity(0.45), radius: 1, y: 1)
+            )
+            .modifier(PiecePulse(enabled: pulses))
+    }
+}
+
+/// 取得不可：灰色に小さな鍵
+struct UnavailablePieceMark: View {
+    var size: CGFloat
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 3, style: .continuous)
+        shape
+            .fill(Color(hex: "D9D4DE"))
+            .overlay(shape.strokeBorder(Color(hex: "C7C0CE"), lineWidth: 0.5))
+            .overlay(
+                Image(systemName: "lock.fill")
+                    .font(.system(size: size * 0.32, weight: .bold))
+                    .foregroundStyle(Color(hex: "A79FB0"))
+            )
+    }
+}
+
+/// 取得可能のピースを、ゆっくり光らせる（視差効果を減らす設定では止める）。
+/// 大きさは変えない（縮めると、ほかのピースより小さく見える）
+private struct PiecePulse: ViewModifier {
+    let enabled: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        if enabled && !reduceMotion {
+            content.phaseAnimator([false, true]) { view, lit in
+                view
+                    .shadow(color: Color(hex: "C77DFF").opacity(lit ? 0.85 : 0.25), radius: lit ? 5 : 1)
+                    .brightness(lit ? 0.06 : 0)
+            } animation: { _ in .easeInOut(duration: 0.9) }
+        } else {
+            content
+        }
     }
 }

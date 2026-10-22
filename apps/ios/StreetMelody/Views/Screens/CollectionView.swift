@@ -82,10 +82,10 @@ struct CollectionView: View {
                     Text("まだ完成したパズルはありません")
                         .font(.system(size: 12, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                 } else {
-                    LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 2), spacing: 12) {
                         ForEach(complete.sorted { $0.id < $1.id }) { track in
                             VStack(alignment: .leading, spacing: 6) {
-                                ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).aspectRatio(1, contentMode: .fit)
+                                ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).aspectRatio(ArtBlockView.ratio, contentMode: .fit)
                                     .overlay(alignment: .bottomTrailing) { playButton(track, size: 26).padding(5) }
                                 Text(track.isUnlocked ? track.title ?? "—" : "未解放")
                                     .font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
@@ -109,7 +109,7 @@ struct CollectionView: View {
                 vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id))
             } label: {
                 HStack(spacing: 12) {
-                    ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).frame(width: 48, height: 48)
+                    ArtBlockView(track: track, cornerRadius: 10, customImage: vm.customUIImage(for: track.id)).mlThumbFrame(width: 80)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
                             .font(.system(size: 12, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
@@ -176,10 +176,10 @@ struct CollectionView: View {
                     .font(.system(size: 11, weight: .black))
                     .foregroundStyle(Color(hex: "A27BC8"))
             }
-            LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 10) {
+            LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 2), spacing: 10) {
                 ForEach(group.tracks) { track in
                     VStack(alignment: .leading, spacing: 6) {
-                        ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).aspectRatio(1, contentMode: .fit)
+                        ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).aspectRatio(ArtBlockView.ratio, contentMode: .fit)
                             .overlay(alignment: .bottomTrailing) { playButton(track, size: 24).padding(5) }
                         Text(track.isUnlocked ? track.title ?? "—" : "未解放")
                             .font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
@@ -220,10 +220,10 @@ struct CollectionView: View {
                         Text("\(oshiTracks.count) / \(limit)曲")
                             .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     }
-                    LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 2), spacing: 12) {
                         ForEach(oshiTracks) { track in
                             VStack(alignment: .leading, spacing: 6) {
-                                ArtBlockView(track: track, customImage: vm.customUIImage(for: track.id)).aspectRatio(1, contentMode: .fit)
+                                ArtBlockView(track: track, cornerRadius: 14, customImage: vm.customUIImage(for: track.id)).aspectRatio(ArtBlockView.ratio, contentMode: .fit)
                                 Text(track.title ?? "—").font(.system(size: 10, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
                                 Text(track.displayArtist).font(.system(size: 9, weight: .heavy)).foregroundStyle(Color(hex: "8D7694")).lineLimit(1)
                             }

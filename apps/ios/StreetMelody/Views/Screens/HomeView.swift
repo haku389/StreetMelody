@@ -71,7 +71,7 @@ struct HomeView: View {
                 }
                 ForEach(vm.nearlyCompleteTracks) { track in
                     HStack(spacing: 12) {
-                        ArtBlockView(track: track).frame(width: 54, height: 54)
+                        ArtBlockView(track: track, cornerRadius: 10).mlThumbFrame(width: 80)
                         VStack(alignment: .leading, spacing: 5) {
                             Text(track.displayTitle).font(.system(size: 12, weight: .semibold)).foregroundStyle(MLPalette.ink).lineLimit(1)
                             Text("あと\(track.pieceCount - track.ownedPieces.count)ピース · \(track.ownedPieces.count) / \(track.pieceCount)")
@@ -268,12 +268,14 @@ struct HomeView: View {
             HStack(spacing: 16) {
                 Group {
                     if let hero = vm.heroTrack {
-                        ArtBlockView(track: hero)
+                        ArtBlockView(track: hero, cornerRadius: 14)
                     } else {
-                        Image("PastelRoom").resizable().scaledToFill().clipShape(RoundedRectangle(cornerRadius: 18))
+                        Color.clear
+                            .overlay { Image("PastelRoom").resizable().scaledToFill() }
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                 }
-                .frame(width: 120, height: 120)
+                .mlThumbFrame(width: 152)
 
                 VStack(alignment: .leading, spacing: 9) {
                     Text("今日のメロディ").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
@@ -374,20 +376,20 @@ struct HomeView: View {
                         if a.isUnlocked != b.isUnlocked { return a.isUnlocked }
                         return a.id < b.id
                     }
-                    .prefix(3)
+                    .prefix(4)
             )
             if recentTracks.isEmpty {
                 Text("まだピースを受け取った曲がありません")
                     .font(.system(size: 11, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
             } else {
-                LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 12) {
+                LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 2), spacing: 12) {
                     ForEach(recentTracks) { track in
                         Button {
                             vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id))
                         } label: {
                             VStack(alignment: .leading, spacing: 8) {
-                                ArtBlockView(track: track).aspectRatio(1, contentMode: .fit)
+                                ArtBlockView(track: track, cornerRadius: 14).aspectRatio(ArtBlockView.ratio, contentMode: .fit)
                                 Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
                                     .font(.system(size: 11, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)
                                 Text(track.displayArtist)

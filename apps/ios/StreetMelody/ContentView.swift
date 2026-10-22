@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var vm: AppViewModel
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -33,6 +34,14 @@ struct ContentView: View {
                 TitleCelebrationOverlay(titleId: titleId)
                     .environmentObject(vm)
                     .zIndex(10)
+            }
+
+            // 今日のメロディのプレゼント（1日1回。タブバーより上に出す）
+            if let count = vm.melodyGiftCount {
+                MelodyGiftOverlay(count: count)
+                    .environmentObject(vm)
+                    .zIndex(12)
+                    .transition(.opacity)
             }
 
             if let previewId = vm.previewTrackId {
@@ -71,6 +80,19 @@ struct ContentView: View {
         }
         .sheet(isPresented: $vm.showProfileEdit) {
             ProfileEditView().environmentObject(vm)
+        }
+        // 読み込みが終わったとき・プロフィールの登録を閉じたとき・前面に戻ったときに、
+        // 今日のメロディが届いていれば開封の演出を出す（出すかどうかは presentMelodyGiftIfNeeded が決める）
+        .onChange(of: vm.isLoading) { _, loading in if !loading { presentGiftSoon() } }
+        .onChange(of: vm.showProfileEdit) { _, open in if !open { presentGiftSoon() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { presentGiftSoon() } }
+    }
+
+    /// 画面が落ち着いてから出す（ホームが描かれる前に被せない）
+    private func presentGiftSoon() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(700))
+            vm.presentMelodyGiftIfNeeded()
         }
     }
 

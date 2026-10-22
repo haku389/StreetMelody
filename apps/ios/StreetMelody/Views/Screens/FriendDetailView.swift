@@ -97,13 +97,13 @@ struct FriendDetailView: View {
                 .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
 
             let sharedTracks = encounter.candidates.compactMap { vm.track(for: $0.trackId) }
-            LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 2), spacing: 12) {
                 ForEach(sharedTracks) { track in
                     Button {
                         vm.navigate(to: track.isUnlocked ? .puzzle(trackId: track.id) : .mystery(trackId: track.id))
                     } label: {
                         VStack(alignment: .leading, spacing: 6) {
-                            ArtBlockView(track: track).aspectRatio(1, contentMode: .fit)
+                            ArtBlockView(track: track, cornerRadius: 14).aspectRatio(ArtBlockView.ratio, contentMode: .fit)
                             Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
                                 .font(.system(size: 10, weight: .black)).lineLimit(1)
                                 .foregroundStyle(MLPalette.ink)

@@ -48,12 +48,12 @@ struct PlaylistView: View {
         return HStack(spacing: 16) {
             Group {
                 if let t = heroTrack {
-                    ArtBlockView(track: t)
+                    ArtBlockView(track: t, cornerRadius: 14)
                 } else {
-                    RoundedRectangle(cornerRadius: 18).fill(Color(hex: "EEE0F2"))
+                    RoundedRectangle(cornerRadius: 14).fill(Color(hex: "EEE0F2"))
                 }
             }
-            .frame(width: 120, height: 120)
+            .mlThumbFrame(width: 152)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("プレイリスト").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
@@ -75,7 +75,7 @@ struct PlaylistView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Text("\(i + 1)").font(.system(size: 12, weight: .black)).foregroundStyle(Color(hex: "B29ABC")).frame(width: 20)
-                            ArtBlockView(track: track, cornerRadius: 12).frame(width: 44, height: 44)
+                            ArtBlockView(track: track, cornerRadius: 10).mlThumbFrame(width: 72)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(track.isUnlocked ? track.title ?? "—" : "未解放メロディ")
                                     .font(.system(size: 12, weight: .black)).lineLimit(1).foregroundStyle(MLPalette.ink)

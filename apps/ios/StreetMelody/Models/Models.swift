@@ -93,13 +93,15 @@ struct Track: Codable, Identifiable {
 
     /// 表示用サムネイル URL。優先順位は次のとおり:
     ///  1) API(DB/CDN)由来の thumbnailUrl（公式MVの maxres など。将来の配信元）
-    ///  2) アプリ同梱画像（オフライン用フォールバック）
-    ///  3) YouTube 画像CDN（mqdefault）から直接（最後の保険）
+    ///  2) YouTube 画像CDN の maxresdefault（1280×720 の 16:9。無い動画は CachedThumbnail が hqdefault に落とす）
+    ///  3) アプリ同梱画像（YouTube の動画が無い曲だけ）
+    /// 同梱画像は Web 版のパズル見本で、6×4 の線と黒帯が焼き込まれ横に伸びているため、16:9 の枠では使わない。
     var thumbnailURL: URL? {
         if let remote = thumbnailUrl, let u = URL(string: remote) { return u }
-        if let local = bundledThumbnailURL { return local }
-        guard let id = youtubeVideoId, !id.hasPrefix("official-") else { return nil }
-        return URL(string: "https://i.ytimg.com/vi/\(id)/mqdefault.jpg")
+        if let id = youtubeVideoId, !id.hasPrefix("official-") {
+            return URL(string: "https://i.ytimg.com/vi/\(id)/maxresdefault.jpg")
+        }
+        return bundledThumbnailURL
     }
 }
 
