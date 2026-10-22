@@ -46,7 +46,7 @@ struct ArtistDetailView: View {
             Circle()
                 .fill(Color(hex: "EEE0F2"))
                 .frame(width: 64, height: 64)
-                .overlay(Text("🎵").font(.title))
+                .overlay(Image(systemName: "music.note").font(.system(size: 26, weight: .black)).foregroundStyle(MLPalette.primary))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(group.name).font(.system(size: 16, weight: .black)).foregroundStyle(MLPalette.ink)

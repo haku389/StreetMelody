@@ -25,7 +25,7 @@ struct PostCollectSection: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 Circle().fill(Color(hex: "A27BC8")).frame(width: 40, height: 40)
-                    .overlay(Text("🎵").font(.system(size: 16)))
+                    .overlay(Image(systemName: "music.note").font(.system(size: 16, weight: .black)).foregroundStyle(.white))
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(pf.userName) さんとメロディでつながりました")
                         .font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)

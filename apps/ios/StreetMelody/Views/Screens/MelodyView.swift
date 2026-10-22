@@ -366,7 +366,8 @@ struct MelodyView: View {
                                         Text("✓").font(.system(size: 14, weight: .black))
                                             .foregroundStyle(Color(hex: "1A9E6E"))
                                     } else if isLocked {
-                                        Text("🔒").font(.system(size: 14))
+                                        Image(systemName: "lock.fill").font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(Color(hex: "B29ABC"))
                                     } else {
                                         Text("\(i + 1)").font(.system(size: 14, weight: .black))
                                             .foregroundStyle(isActive ? .white : Color(hex: "A27BC8"))
@@ -375,9 +376,17 @@ struct MelodyView: View {
                             )
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("\(enc.fromUserName)\(isFriend ? " 🎵" : "")")
-                                .font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink)
-                                .lineLimit(1)
+                            HStack(spacing: 4) {
+                                Text(enc.fromUserName)
+                                    .font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink)
+                                    .lineLimit(1)
+                                if isFriend {
+                                    // フレンドの印（絵文字は端末によって「?」に化けるので記号にする）
+                                    Image(systemName: "music.note").font(.system(size: 10, weight: .black))
+                                        .foregroundStyle(MLPalette.primary)
+                                        .accessibilityLabel("フレンド")
+                                }
+                            }
                             Label("\(enc.locationLabel) · \(enc.candidates.count)曲", systemImage: "mappin.and.ellipse")
                                 .font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
                         }
@@ -421,7 +430,7 @@ struct MelodyView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Text("🎵").font(.system(size: 48))
+            Image(systemName: "music.note").font(.system(size: 44, weight: .black)).foregroundStyle(MLPalette.primary)
             Text("まだ出会いがありません")
                 .font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
             Text("外出してすれちがいを待ちましょう")

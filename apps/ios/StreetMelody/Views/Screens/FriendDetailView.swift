@@ -55,7 +55,7 @@ struct FriendDetailView: View {
             Circle()
                 .fill(Color(hex: "A27BC8"))
                 .frame(width: 64, height: 64)
-                .overlay(Text("🎵").font(.system(size: 24)))
+                .overlay(Image(systemName: "music.note").font(.system(size: 26, weight: .black)).foregroundStyle(.white))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(friend.userName)

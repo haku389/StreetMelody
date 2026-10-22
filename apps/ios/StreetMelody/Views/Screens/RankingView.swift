@@ -54,7 +54,7 @@ struct RankingView: View {
 
         if tab == .friend && vm.friends.isEmpty {
             HStack(spacing: 10) {
-                Text("🎵")
+                Image(systemName: "music.note").font(.system(size: 16, weight: .black)).foregroundStyle(MLPalette.primary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("まだフレンドがいません").font(.system(size: 12, weight: .black)).foregroundStyle(MLPalette.ink)
                     Text("すれちがいでピースを交換するとフレンドになれます").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))

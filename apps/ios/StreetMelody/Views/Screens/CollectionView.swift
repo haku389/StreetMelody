@@ -159,7 +159,7 @@ struct CollectionView: View {
                     Circle()
                         .fill(Color(hex: "EEE0F2"))
                         .frame(width: 56, height: 56)
-                        .overlay(Text("🎵").font(.title3))
+                        .overlay(Image(systemName: "music.note").font(.system(size: 22, weight: .black)).foregroundStyle(MLPalette.primary))
                     VStack(alignment: .leading, spacing: 4) {
                         Text(group.name).font(.system(size: 14, weight: .black)).foregroundStyle(MLPalette.ink)
                         Text("曲パズル完成数").font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))

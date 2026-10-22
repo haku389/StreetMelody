@@ -118,7 +118,7 @@ struct MelodyMixView: View {
 
     private func melodyCard(title: String, subtitle: String, accent: Color, play: @escaping () -> Void) -> some View {
         HStack(spacing: 12) {
-            Circle().fill(lilac).frame(width: 48, height: 48).overlay(Text("🎵").font(.title3))
+            Circle().fill(lilac).frame(width: 48, height: 48).overlay(Image(systemName: "music.note").font(.system(size: 20, weight: .black)).foregroundStyle(accent))
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.system(size: 13, weight: .black)).foregroundStyle(MLPalette.ink)
                 Text(subtitle).font(.system(size: 10, weight: .heavy)).foregroundStyle(Color(hex: "8D7694"))
